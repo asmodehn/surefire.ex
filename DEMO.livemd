@@ -1,0 +1,59 @@
+# Surefire
+
+## Introduction
+
+Surefire is a package helping make immediate rational decisions, to obtain a probabilistically suitable long term outcome, even in the presence of a process that is random in the short term.
+
+This is the long way around saying surefire aims to make a bet as safe as possible.
+
+But lets start by attempting to model the context:
+
+```mermaid
+flowchart LR
+
+    User -->|bias !| Dec{Decision}
+    Dec --> |enter| Position -->|exit| Trades
+
+    Trades --> |statistics| User
+    Dec --> |pass| Opportunity
+
+    RandomWalk --> Opportunity -->|odds| User
+    RandomWalk --> Position
+```
+
+```elixir
+# Usage example
+
+# In a DayTrader GenServer, started with (minimal_acceptable_odds)
+
+
+stats = Trades.statistics()
+
+while Statistics.verify(stats > 
+
+# synchronously get the next opportunity, 
+# for which the odds are more than some minimal acceptable value
+opportunity = RandomWalk.opportunity(minimal_acceptable_odds)
+
+assert opportunity.estimated_odds >= minimal_acceptable_odds 
+
+# If desired we can bet on this opportunity
+# Otherwise, we can just skip it...
+position = Opportunity.bet(opportunity)
+
+
+# We synchronously wait for when the position will close (one way or another)
+# Note :  the trade should be automatically recorded...
+trade = Position.wait_for_exit(position)
+
+
+stats = Trades.statistics()
+
+
+
+
+
+
+
+
+```
