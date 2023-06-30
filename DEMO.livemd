@@ -4,9 +4,13 @@
 
 Surefire is a package helping make immediate rational decisions, to obtain a probabilistically suitable long term outcome, even in the presence of a process that is random in the short term.
 
-This is the long way around saying surefire aims to make a bet as safe as possible.
+This is the long way around saying surefire aims to make betting an activity as safe as possible.
 
-But lets start by attempting to model the context:
+To achieve this, we need to introduce concepts, that are handled implicitely or explicitely, usually by people, in a real-world game.
+
+Here we aim to automate what is automatable.
+
+But lets start by drawing an interaction model of what we are talking about:
 
 ```mermaid
 flowchart LR
@@ -20,6 +24,52 @@ flowchart LR
     RandomWalk --> Opportunity -->|odds| User
     RandomWalk --> Position
 ```
+
+<!-- livebook:{"break_markdown":true} -->
+
+Let's draw a sequence diagram, to see the information transfer over time.
+
+Note:
+
+* Events regarding cards or bets are supposed to be tracked in the background, so any process can refer to it at a later time.
+* Also we describe here the main data flow, but Player can always get additional information from Table to make a decision.
+
+<!-- Learn more at https://mermaid-js.github.io/mermaid -->
+
+```mermaid
+sequenceDiagram 
+  Player->>Bank: blind
+  Bank ->> Table: ask_cards
+  Table ->> Stochastic: start_game
+  Stochastic ->> Table: deal_cards 
+  Table ->> Bank: opportunities 
+  Bank ->> Player: opportunities
+
+  Player->>Bank: bets
+  Bank ->> Table: next
+  Table ->> Stochastic: next
+  Stochastic ->> Table: next_card
+  Table->>Bank: opportunities 
+  Bank ->> Player: opportunities
+  
+  Player->>Bank: bets
+  Bank->> Table: reveal
+  Table ->> Stochastic: reveal
+  Stochastic ->> Table: revealed
+  Table->>Bank: do_payout
+  Bank->>Player: payout
+```
+
+So here we see the main actors in this game.
+What we want here is th at the Bank, and the Table have functionality to help the Player make a decision.
+
+So Bank has a part of its logic that depends on the Game, and a part that is needed to help the player make good/safe decisions (money mngmt, odds & expectations).
+
+And Table also has a part of its logic that depends on the Game, and a part that is needed to help the player make good/safe decisions (future probabilities & past statistics)
+
+<!-- livebook:{"break_markdown":true} -->
+
+
 
 ```elixir
 # Usage example
