@@ -65,10 +65,17 @@ defmodule Surefire.IExPlayer do
       %{player | credits: player.credits + gain}
     end
 
-    def decide(player, prompt, choices) do
-      ExPrompt.choose(prompt, choices)
-      # optionally modify player...
-      player
+    def decide(player, prompt, choice_map) do
+      keys = Map.keys(choice_map)
+      choice_idx = ExPrompt.choose(prompt, keys)
+      choice = case choice_idx do
+        #loop on default(prbm with input...)
+        -1 -> decide(player, prompt, choice_map)
+
+        # extract value when key matches
+        # optionally modify player...
+        i -> {player, choice_map[Enum.at(keys, i)]}
+      end
     end
   end
 

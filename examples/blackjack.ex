@@ -21,6 +21,14 @@ end
 defmodule Blackjack do
   @moduledoc """
     A Blackjack implementation, using Surefire.
+
+    To create players and run a quick game:
+
+      iex> me = Blackjack.Player.Interactive.new()
+      iex> bj = Blackjack.new([me])
+      iex> bj = bj |> Blackjack.bet(sureFire.Player.id(me), 21)
+      ies> bj = bj |> Blackjack.deal()
+
   """
 
   alias Blackjack.{Bets, Table}
@@ -63,10 +71,37 @@ defmodule Blackjack do
     players = Bets.players(bets)
     %{game | table: game.table
             |> Table.deal_card( players ++ [:dealer])
-            |> Table.deal_card( players ++ [:dealer])
+            |> Table.deal_card( players)
     }
   end
 
+  @doc ~s"""
+    The play phase, where each player makes decisions, and cards are dealt
+  """
+  def play(%__MODULE__{players: players} = game) do
+    for p <- Map.keys(players), reduce: game do
+      game ->
+        act = check_positions(game, p)
+        # TODO :  a more clean/formal way to requesting from player,
+        #    and player confirming action (to track for replays...)
+        case act do
+        {_pdata , :stand} -> action(game, p, :stand)
+        {_pdata,  :hit} -> action(game, p, :hit)
+          {_pdata, :bust} -> action(game,p, :bust)
+          {_pdata , :blackjack} -> action(game,p, :blackjack)
+        end
+
+    end
+    # TODO : loop until the end of player turns
+
+  end
+
+  @doc ~s"""
+    To the end, where the dealer get cards until >17
+  """
+  def resolve() do
+
+  end
 
   def action(%__MODULE__{} = game, player, action)
     when action in [:hit, :stand] do
@@ -94,7 +129,7 @@ defmodule Blackjack do
 
     end
 
-    def check_positions(%__MODULE__{table: table} = game, player) do
+    def check_positions(%__MODULE__{table: table} = game, player) when is_atom(player) do
 
       player_pos = table
       |> Table.check_value(player)
@@ -102,7 +137,13 @@ defmodule Blackjack do
       case player_pos do
         :bust -> %{game | table: game.table |> Table.player_bust(player)}
         :blackjack ->  :stand # wait for dealer check
-        _ -> Surefire.Player.decide(player, "Hit it ? or Stand ?", ~w(hit stand)) |> IO.inspect()
+        value -> Surefire.Player.decide(game.players[player],
+               "Position at #{value}. What to do ?",
+               %{
+               "Hit" => :hit,
+              "Stand" => :stand
+              # TODO : more options... Ref : https://en.wikipedia.org/wiki/Blackjack#Player_decisions
+               })
       end
 
     end
