@@ -149,3 +149,7 @@ defmodule Blackjack.TableTest do
 
 
 end
+
+defmodule BlackjackTest do
+
+end
