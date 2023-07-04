@@ -50,6 +50,9 @@ defmodule Blackjack.Table do
 
   end
 
+  def close(positions, player_id) when is_atom(player_id) do
+    positions |> Map.drop(player_id)
+  end
 
 
 
@@ -127,12 +130,11 @@ defmodule Blackjack.Table do
 
   end
 
-  def player_bust(%__MODULE__{positions: pos} = table, player) do
+  def close_position(%__MODULE__{positions: pos} = table, player) do
 
-    %{table | positions: pos |> Map.drop(player)}
+    %{table | positions: pos |> Map.drop([player])}
 
   end
-
 
 
 end

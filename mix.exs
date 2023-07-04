@@ -37,7 +37,9 @@ defmodule Surefire.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       {:stream_data, "~> 0.5"},
       {:math, " ~> 0.7"},
-      {:ex_prompt, "~> 0.1.5"}
+      {:ex_prompt, "~> 0.1.5"},
+      {:fsmx, "~> 0.2.0"},
+      {:exqlite, "~> 0.13"}
     ]
   end
 end
