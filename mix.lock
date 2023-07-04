@@ -1,5 +1,6 @@
 %{
   "cc_precompiler": {:hex, :cc_precompiler, "0.1.7", "77de20ac77f0e53f20ca82c563520af0237c301a1ec3ab3bc598e8a96c7ee5d9", [:mix], [{:elixir_make, "~> 0.7.3", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "2768b28bf3c2b4f788c995576b39b8cb5d47eb788526d93bd52206c1d8bf4b75"},
+  "committee": {:hex, :committee, "1.0.0", "f60fb092b7a86e9e6014ce7932324a5c16a6420e415ef25d12c23a5491885c20", [:mix], [], "hexpm", "478bd6c7dd359d3eaf06c3107d5aa6ed4c1d023573b7f69eadd39d2b4d744875"},
   "db_connection": {:hex, :db_connection, "2.5.0", "bb6d4f30d35ded97b29fe80d8bd6f928a1912ca1ff110831edcd238a1973652c", [:mix], [{:telemetry, "~> 0.4 or ~> 1.0", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "c92d5ba26cd69ead1ff7582dbb860adeedfff39774105a4f1c92cbb654b55aa2"},
   "elixir_make": {:hex, :elixir_make, "0.7.7", "7128c60c2476019ed978210c245badf08b03dbec4f24d05790ef791da11aa17c", [:mix], [{:castore, "~> 0.1 or ~> 1.0", [hex: :castore, repo: "hexpm", optional: true]}], "hexpm", "5bc19fff950fad52bbe5f211b12db9ec82c6b34a9647da0c2224b8b8464c7e6c"},
   "ex_prompt": {:hex, :ex_prompt, "0.1.5", "b136642d0962f8ea37b3c9fa185ad1f42c71c3b9c6c3950f0358d7f3d2db2970", [:mix], [], "hexpm", "ad19a404708c9c7b05d36090b2d074ceafbed248a8de1a22d45a05ebe6994b83"},

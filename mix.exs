@@ -12,7 +12,6 @@ defmodule Surefire.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       # [warnings_as_errors: true],
       elixirc_options: [],
-
       deps: deps()
     ]
   end
@@ -39,7 +38,10 @@ defmodule Surefire.MixProject do
       {:math, " ~> 0.7"},
       {:ex_prompt, "~> 0.1.5"},
       {:fsmx, "~> 0.2.0"},
-      {:exqlite, "~> 0.13"}
+      {:exqlite, "~> 0.13"},
+
+      # dev tools
+      {:committee, "~> 1.0.0", only: :dev, runtime: false}
     ]
   end
 end
