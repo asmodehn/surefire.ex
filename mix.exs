@@ -39,6 +39,7 @@ defmodule Surefire.MixProject do
       {:ex_prompt, "~> 0.1.5"},
       {:fsmx, "~> 0.2.0"},
       {:exqlite, "~> 0.13"},
+      {:gen_state_machine, "3.0.0"},
 
       # dev tools
       {:committee, "~> 1.0.0", only: :dev, runtime: false}

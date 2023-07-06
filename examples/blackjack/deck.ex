@@ -6,6 +6,7 @@ defmodule Blackjack.Deck do
   @type card :: {card_value, card_color}
 
   defmodule Card do
+    # TODO: attributes unneeded since only in this module...
     @two :two
     @three :three
     @four :four
@@ -29,7 +30,6 @@ defmodule Blackjack.Deck do
     # we forbid implicit creation by setting to nil
     defstruct value: nil, color: nil
 
-
     def colors, do: [@hearts, @spades, @clubs, @diamonds]
 
     def values,
@@ -48,6 +48,42 @@ defmodule Blackjack.Deck do
         @king,
         @ace
       ]
+
+    defimpl Inspect do
+      import Inspect.Algebra
+
+      def inspect(card, opts) do
+        value =
+          case card.value do
+            :two -> "2"
+            :three -> "3"
+            :four -> "4"
+            :five -> "5"
+            :six -> "6"
+            :seven -> "7"
+            :eight -> "8"
+            :nine -> "9"
+            :ten -> "10"
+            :jack -> "J"
+            :queen -> "Q"
+            :king -> "K"
+            # or "1" ?? depending on hand value ??
+            :ace -> "A"
+          end
+
+        color =
+          case card.color do
+            :hearts -> "♥"
+            :spades -> "♠"
+            :clubs -> "♣"
+            :diamonds -> "♦"
+          end
+
+        concat(["#Blackjack.Deck.Card<", string(value <> color), ">"])
+      end
+
+      # TODO we can make prettier render when pretty inspect option is on ?
+    end
   end
 
   defmacro deck() do

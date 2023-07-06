@@ -1,0 +1,6 @@
+defmodule Surefire.Money do
+  # TODO : a way to make sure money isnt accidentally duplicated somewhere deep in code...
+  # HOW ???? use a stream ?? => linear programming. a bit convoluted but feasible...
+
+  # TODO : use Decimal
+end

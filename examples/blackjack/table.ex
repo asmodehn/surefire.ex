@@ -1,63 +1,5 @@
-
 defmodule Blackjack.Table do
-
-  defmodule Position do
-
-    alias Blackjack.Deck.Card
-
-    @type t :: list
-
-    def card_value(%Card{value: v}, opts \\ [low_ace: false]) do
-      low_ace = Keyword.get(opts, :low_ace, false)
-
-      case v do
-        :two -> 2
-        :three -> 3
-        :four -> 4
-        :five -> 5
-        :six -> 6
-        :seven -> 7
-        :eight -> 8
-        :nine -> 9
-        :ten -> 10
-        :jack -> 10
-        :queen -> 10
-        :king -> 10
-        :ace -> if low_ace, do: 1, else: 11
-      end
-    end
-
-
-  def check_value(cards, opts \\ [low_ace: false]) do
-    low_ace = Keyword.get(opts, :low_ace, false)
-
-    val = cards
-    |> Enum.map(fn c -> card_value(c) end)
-    |> Enum.sum()
-
-                cond do
-
-     val > 21 -> if low_ace do
-                                      :bust
-                                         else
-                                         check_value(cards, low_ace: true)
-                  end
-      val == 21 -> :blackjack
-      true -> val
-                             end
-
-
-
-  end
-
-  def close(positions, player_id) when is_atom(player_id) do
-    positions |> Map.drop(player_id)
-  end
-
-
-
-  end
-
+  alias Blackjack.Hand
 
   import Blackjack.Deck, only: [deck: 0]
 
@@ -70,71 +12,49 @@ defmodule Blackjack.Table do
     }
   end
 
-  def deal_card(%__MODULE__{} = table, players)
-      when  is_list(players) do
+  def next_card(%__MODULE__{} = table) do
+    [card | shoe] = table.shoe
+    # TODO : into a struct
+    {table, card}
+  end
 
-      players
-      |> Enum.uniq()
-      |> Enum.reduce(table, fn
-        p, t -> deal_card(t, p)
-      end)
+  def card_to({%__MODULE__{} = table, card}, :dealer) do
+    %{table | dealer: table.dealer ++ [card]}
+  end
 
+  def card_to({%__MODULE__{} = table, card}, player) do
+    %{
+      table
+      | positions:
+          Map.merge(
+            table.positions,
+            Map.new([{player, [card]}]),
+            fn _k, l1, l2 -> l1 ++ l2 end
+          )
+    }
+  end
+
+  def check_value(%__MODULE__{} = table, :dealer) do
+    dealer_position = table.dealer |> Hand.value()
+
+    case dealer_position do
+      :bust -> :bust
+      :blackjack -> :blackjack
+      v -> v
     end
-
-
-    def deal_card(%__MODULE__{shoe: shoe} = table, :dealer)
-      when is_list(shoe) do
-
-    [card | shoe ]=shoe
-
-    %{table |
-      shoe: shoe,
-      dealer: table.dealer ++ [card]
-    }
   end
 
-    def deal_card(%__MODULE__{shoe: shoe} = table, player)
-      when is_list(shoe) and is_atom(player) do
+  def check_value(%__MODULE__{} = table, player) do
+    player_position = table.positions[player] |> Hand.value()
 
-    [card | shoe ]=shoe
-
-    %{table |
-      shoe: shoe,
-      positions: Map.merge(
-                 table.positions,
-                  Map.new([{player, [card]}]),
-                  fn _k, l1, l2 -> l1 ++ l2 end)
-    }
-  end
-
-
-    def check_value(%__MODULE__{} = table, :dealer) do
-      dealer_position = table.dealer |> Position.check_value()
-
-      case dealer_position do
-        :bust -> :bust
-        :blackjack -> :blackjack
-        v -> v
-      end
-
-  end
-
-    def check_value(%__MODULE__{} = table, player) do
-      player_position = table.positions[player] |> Position.check_value()
-
-      case player_position do
-        :bust -> :bust
-        :blackjack -> :blackjack
-        v -> v
-      end
-
+    case player_position do
+      :bust -> :bust
+      :blackjack -> :blackjack
+      v -> v
+    end
   end
 
   def close_position(%__MODULE__{positions: pos} = table, player) do
-
     %{table | positions: pos |> Map.drop([player])}
-
   end
-
-
 end

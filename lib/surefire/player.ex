@@ -1,48 +1,98 @@
-
-
 defprotocol Surefire.Player do
-
-
   def id(player)
   def name(player)
   def credits(player)
-
 
   def get(player, gain)
   def bet(player, bet)
 
   def decide(player, prompt, choices)
-
-
 end
 
-
-defmodule Surefire.IExPlayer do
-
+defmodule Surefire.TestPlayer do
   defstruct name: nil, credits: 0
 
+  # TODO : only one player per iex session -> HOW ??
+
+  def new(name, credits) do
+    %Surefire.TestPlayer{name: name, credits: credits}
+  end
+
+  # TODO : decorate iex session to show name of player ?
+  # Note the game being played is hte usual behaviour of function calls in IEx.
+  # Only the player interaction requires special handling (communication the "other way".)
+
+  defimpl Surefire.Player do
+    def id(player) do
+      String.to_atom(player.name)
+    end
+
+    def name(player) do
+      player.name
+    end
+
+    def credits(player) do
+      player.credits
+    end
+
+    def bet(player, bet) do
+      #      IO.puts("#{player}/You bet #{bet}")  -> IO monad param in protocol ?
+      %{player | credits: player.credits - bet}
+    end
+
+    def get(player, gain) do
+      #      IO.puts("#{player}/You get #{gain}") -> IO monad param in protocol ?
+      %{player | credits: player.credits + gain}
+    end
+
+    def decide(player, prompt, choice_map) do
+      keys = Map.keys(choice_map)
+      #      choice_idx = ExPrompt.choose(prompt, keys) -> IO monad param in protocol ?
+      choice_idx = Enum.random(0..(length(keys) - 1))
+
+      choice =
+        case choice_idx do
+          # loop on default(prbm with input...)
+          -1 -> decide(player, prompt, choice_map)
+          # extract value when key matches
+          # optionally modify player...
+          # TODO ?
+          #        i -> {player, choice_map[Enum.at(keys, i)]}
+
+          i -> choice_map[Enum.at(keys, i)]
+        end
+    end
+  end
+
+  defimpl String.Chars do
+    def to_string(player), do: player.name
+  end
+end
+
+defmodule Surefire.IExPlayer do
+  defstruct name: nil, credits: 0
 
   def new() do
     name = ExPrompt.string_required("What is your name ? ")
-    {credits,""} = ExPrompt.string("How much credits do you have? " )
-              |> Integer.parse()
+
+    {credits, ""} =
+      ExPrompt.string("How much credits do you have? ")
+      |> Integer.parse()
 
     new(name, credits)
   end
 
   # TODO : only one player per iex session -> HOW ??
 
-    def new(name, credits) do
-      %Surefire.IExPlayer{name: name, credits: credits}
-    end
+  def new(name, credits) do
+    %Surefire.IExPlayer{name: name, credits: credits}
+  end
 
-  #TODO : decorate iex session to show name of player ?
+  # TODO : decorate iex session to show name of player ?
   # Note the game being played is hte usual behaviour of function calls in IEx.
   # Only the player interaction requires special handling (communication the "other way".)
 
   defimpl Surefire.Player do
-
-
     def id(player) do
       String.to_atom(player.name)
     end
@@ -68,21 +118,19 @@ defmodule Surefire.IExPlayer do
     def decide(player, prompt, choice_map) do
       keys = Map.keys(choice_map)
       choice_idx = ExPrompt.choose(prompt, keys)
-      choice = case choice_idx do
-        #loop on default(prbm with input...)
-        -1 -> decide(player, prompt, choice_map)
 
-        # extract value when key matches
-        # optionally modify player...
-        i -> {player, choice_map[Enum.at(keys, i)]}
-      end
+      choice =
+        case choice_idx do
+          # loop on default(prbm with input...)
+          -1 -> decide(player, prompt, choice_map)
+          # extract value when key matches
+          # optionally modify player...
+          i -> {player, choice_map[Enum.at(keys, i)]}
+        end
     end
   end
-
 
   defimpl String.Chars do
     def to_string(player), do: player.name
   end
-
 end
-
