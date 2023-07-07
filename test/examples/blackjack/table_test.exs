@@ -9,17 +9,17 @@ defmodule Blackjack.TableTest do
     assert length(Table.new().shoe) == 3 * length(deck())
   end
 
-  describe "deal_card/2" do
+  describe "next_card/1 |> card_to/2" do
     test "can deal a card to the dealer" do
       table =
         Table.new()
         |> Table.next_card()
         # here we can see the table and the card
-        |> IO.inspect()
+        #        |> IO.inspect()
         |> Table.card_to(:dealer)
 
-      assert length(table.dealer) == 1
-      assert %Blackjack.Deck.Card{} = List.first(table.dealer)
+      %Blackjack.Hand{cards: clist} = table.dealer
+      assert length(clist) == 1
     end
 
     test "can deal a card to a player" do
@@ -30,28 +30,34 @@ defmodule Blackjack.TableTest do
         |> IO.inspect()
         |> Table.card_to(:bob)
 
+      #        |> IO.inspect()
+
       assert :bob in Map.keys(table.positions)
-      assert length(table.positions[:bob]) == 1
-      assert %Blackjack.Deck.Card{} = List.first(table.positions[:bob])
+      %Blackjack.Hand{cards: clist} = table.positions[:bob]
+      assert length(clist) == 1
     end
 
     test "can deal a card to many players, including dealer" do
       table =
         [:alice, :bob, :dealer]
         |> Enum.reduce(Table.new(), fn
-          p, t -> Table.next_card(t) |> Table.card_to(p)
+          p, t ->
+            Table.next_card(t)
+            #                  |> IO.inspect()
+            |> Table.card_to(p)
         end)
 
       assert :alice in Map.keys(table.positions)
       assert :bob in Map.keys(table.positions)
 
-      assert length(table.dealer) == 1
-      assert length(table.positions[:alice]) == 1
-      assert length(table.positions[:bob]) == 1
+      %Blackjack.Hand{cards: clist} = table.dealer
+      assert length(clist) == 1
 
-      assert %Blackjack.Deck.Card{} = List.first(table.dealer)
-      assert %Blackjack.Deck.Card{} = List.first(table.positions[:alice])
-      assert %Blackjack.Deck.Card{} = List.first(table.positions[:bob])
+      %Blackjack.Hand{cards: clist} = table.positions[:alice]
+      assert length(clist) == 1
+
+      %Blackjack.Hand{cards: clist} = table.positions[:bob]
+      assert length(clist) == 1
     end
   end
 end

@@ -4,7 +4,7 @@ defmodule Blackjack.Table do
   import Blackjack.Deck, only: [deck: 0]
 
   @derive {Inspect, only: [:dealer, :positions]}
-  defstruct shoe: [], dealer: [], positions: %{}
+  defstruct shoe: [], dealer: %Hand{}, positions: %{}
 
   def new(_decks \\ 3) do
     %__MODULE__{
@@ -14,43 +14,49 @@ defmodule Blackjack.Table do
 
   def next_card(%__MODULE__{} = table) do
     [card | shoe] = table.shoe
-    # TODO : into a struct
-    {table, card}
+    # TODO : into a struct ?(event-like)
+    {%{table | shoe: shoe}, card}
   end
 
   def card_to({%__MODULE__{} = table, card}, :dealer) do
-    %{table | dealer: table.dealer ++ [card]}
+    %{
+      table
+      | dealer: Hand.add_card(table.dealer, card)
+        #    |> IO.inspect()
+    }
   end
 
   def card_to({%__MODULE__{} = table, card}, player) do
     %{
       table
       | positions:
-          Map.merge(
-            table.positions,
-            Map.new([{player, [card]}]),
-            fn _k, l1, l2 -> l1 ++ l2 end
+          table.positions
+          |> Map.update(
+            player,
+            Hand.new(card),
+            fn player_hand -> player_hand |> Hand.add_card(card) end
           )
+        #                   |> IO.inspect()
     }
   end
 
-  def check_value(%__MODULE__{} = table, :dealer) do
-    dealer_position = table.dealer |> Hand.value()
-
-    case dealer_position do
-      :bust -> :bust
-      :blackjack -> :blackjack
-      v -> v
+  def check_hand(%__MODULE__{} = table, :dealer) do
+    cond do
+      table.dealer.value > 21 -> :bust
+      table.dealer.value == 21 -> :blackjack
+      # dealer mandatory stand after 17 !!
+      table.dealer.value >= 17 -> :stand
+      true -> table.dealer.value
     end
   end
 
-  def check_value(%__MODULE__{} = table, player) do
-    player_position = table.positions[player] |> Hand.value()
+  def check_hand(%__MODULE__{} = table, player) do
+    val = table.positions[player].value
 
-    case player_position do
-      :bust -> :bust
-      :blackjack -> :blackjack
-      v -> v
+    cond do
+      val > 21 -> :bust
+      val == 21 -> :blackjack
+      true -> val
     end
   end
 

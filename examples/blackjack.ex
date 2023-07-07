@@ -122,7 +122,7 @@ defmodule Blackjack do
         for p <- Map.keys(players), reduce: bj do
           bj ->
             # TODO : handle "push" when both are equal...
-            if Table.check_value(bj.table, p) > Table.check_value(bj.table, :dealer) do
+            if Table.check_hand(bj.table, p) > Table.check_hand(bj.table, :dealer) do
               player_win(bj, p)
             else
               player_lose(bj, p)
@@ -156,31 +156,32 @@ defmodule Blackjack do
     end
   end
 
+  # TODO : compare with check_hand
   def check_positions(%__MODULE__{table: table}, :dealer) do
     dealer_pos =
       table
-      |> Table.check_value(:dealer)
+      |> Table.check_hand(:dealer)
 
     case dealer_pos do
       :bust -> :bust
       :blackjack -> :blackjack
-      v -> if v < 17, do: :hit, else: :stand
+      :stand -> :stand
+      _v -> :hit
     end
   end
 
   def check_positions(%__MODULE__{table: table} = game, player) when is_atom(player) do
     player_pos =
       table
-      |> Table.check_value(player)
+      |> Table.check_hand(player)
 
     case player_pos do
       # %{game | table: game.table |> Table.close_position(player)}
       :bust ->
         :bust
 
-      # wait for dealer check
       :blackjack ->
-        :stand
+        :blackjack
 
       value ->
         Surefire.Player.decide(

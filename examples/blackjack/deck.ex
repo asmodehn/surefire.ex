@@ -52,7 +52,15 @@ defmodule Blackjack.Deck do
     defimpl Inspect do
       import Inspect.Algebra
 
-      def inspect(card, opts) do
+      def inspect(card, _opts) do
+        concat(["#Blackjack.Deck.Card<", string("#{card}"), ">"])
+      end
+
+      # TODO we can make prettier render when pretty inspect option is on ?
+    end
+
+    defimpl String.Chars do
+      def to_string(card) do
         value =
           case card.value do
             :two -> "2"
@@ -79,10 +87,8 @@ defmodule Blackjack.Deck do
             :diamonds -> "♦"
           end
 
-        concat(["#Blackjack.Deck.Card<", string(value <> color), ">"])
+        value <> color
       end
-
-      # TODO we can make prettier render when pretty inspect option is on ?
     end
   end
 
