@@ -1,27 +1,3 @@
-defmodule Blackjack.Bets do
-  # TODO : maybe "positions" is more accurate / useful ?
-  # TODO: check how we split money & player for various the positions / hands ...
-  defstruct bets: []
-
-  # Note: bets seems to be like monad : a state embedded deep inside a process...
-  # Maybe there is a way to leverage that for better design ?
-  # Note : we want to track each bet (opening positions) separately, in event sourcing style
-  #  => teh current bet amount is an aggregate(?)/collectable(?) view of a set of betting events
-
-  def player_bet(%__MODULE__{} = b, player, bet) do
-    %{b | bets: Keyword.update(b.bets, player, bet, fn v -> v + bet end)}
-  end
-
-  def player_end(%__MODULE__{} = b, player) do
-    {player_bet, bets} = Keyword.pop!(b.bets, player)
-    {player_bet, %{b | bets: bets}}
-  end
-
-  def players(%__MODULE__{bets: b}) do
-    Keyword.keys(b)
-  end
-end
-
 defmodule Blackjack do
   @moduledoc """
     A Blackjack implementation, using Surefire.
@@ -35,16 +11,17 @@ defmodule Blackjack do
 
   """
 
-  alias Blackjack.{Bets, Table}
+  import Blackjack.Deck, only: [deck: 0]
 
-  #  @derive {Inspect, only: [:bets, :table]}
+  alias Blackjack.{Bets, Table, Hand}
+
+  #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
+            # TODO : shouldnt bets be on the table ??
             bets: %Bets{},
             table: %Table{}
 
-  #            state: nil
-  #
-  #  use Fsmx.Struct, fsm: Blackjack.Rules
+  # TODO : we should add the total house bank amount here...
 
   @doc """
     Register players for a new game.
@@ -54,6 +31,8 @@ defmodule Blackjack do
       players: players |> Enum.map(fn p -> {Surefire.Player.id(p), p} end) |> Enum.into(%{}),
       table: Table.new()
     }
+
+    # TODO : loop by adding players via add_player/2
   end
 
   # TODO : new and bet are the same ? (blind bets -> start game ??)
@@ -62,6 +41,7 @@ defmodule Blackjack do
       when is_atom(player) and is_number(amount) do
     players =
       if player not in Map.keys(game.players) do
+        # TODO : atom or not ???
         game.players ++ [player]
       else
         game.players
@@ -81,11 +61,7 @@ defmodule Blackjack do
   def deal(%__MODULE__{bets: bets} = game) do
     players = Bets.players(bets)
 
-    table =
-      (players ++ [:dealer] ++ players)
-      |> Enum.reduce(game.table, fn
-        p, t -> Table.next_card(t) |> Table.card_to(p)
-      end)
+    table = Table.deal(game.table, players)
 
     %{game | table: table}
   end
@@ -93,17 +69,16 @@ defmodule Blackjack do
   @doc ~s"""
     The play phase, where each player makes decisions, and cards are dealt
   """
-  def play(%__MODULE__{players: players} = game) do
+  def play(%__MODULE__{players: players, table: table} = game) do
+    # TODO: make sure somehow that all players who did bet have a hand.
     for p <- Map.keys(players), reduce: game do
       game ->
-        act = check_positions(game, p)
-        # TODO :  a more clean/formal way to requesting from player,
-        #    and player confirming action (to track for replays...)
-        case act do
-          :stand -> action(game, p, :stand)
-          :hit -> action(game, p, :hit)
-          :bust -> action(game, p, :bust)
-          :blackjack -> action(game, p, :blackjack)
+        if is_atom(table.positions[p].value) do
+          # blackjack or bust: skip this... until resolve (???)
+          game
+        else
+          %{game | table: table |> Table.maybe_card_to(game.players[p])}
+          # ? TODO: recurse here or after whole loop ?
         end
     end
 
@@ -113,22 +88,10 @@ defmodule Blackjack do
   @doc ~s"""
     To the end, where the dealer get cards until >17
   """
-  def resolve(%__MODULE__{players: players} = bj) do
-    case check_positions(bj, :dealer) do
-      :hit ->
-        %{bj | table: bj.table |> Table.next_card() |> Table.card_to(:dealer)} |> resolve()
 
-      :stand ->
-        for p <- Map.keys(players), reduce: bj do
-          bj ->
-            # TODO : handle "push" when both are equal...
-            if Table.check_hand(bj.table, p) > Table.check_hand(bj.table, :dealer) do
-              player_win(bj, p)
-            else
-              player_lose(bj, p)
-            end
-        end
-
+  def resolve(%__MODULE__{players: players, table: table} = bj)
+      when is_atom(table.dealer.value) do
+    case table.dealer.value do
       :bust ->
         for p <- Map.keys(players), reduce: bj do
           acc -> player_win(acc, p)
@@ -141,58 +104,27 @@ defmodule Blackjack do
     end
   end
 
-  def action(%__MODULE__{} = game, player, action)
-      when action in [:hit, :stand] do
-    if action == :hit do
-      %{
-        game
-        | table:
-            game.table
-            |> Table.next_card()
-            |> Table.card_to(player)
-      }
-    else
-      game
-    end
-  end
+  def resolve(%__MODULE__{players: players, table: table} = bj)
+      when is_integer(table.dealer.value) do
+    cond do
+      # TODO : this is a (mandatory) dealer decision -> somewhere else or not ?
+      # hit !
+      table.dealer.value < 17 ->
+        %{bj | table: bj.table |> Table.next_card() |> Table.card_to(:dealer)} |> resolve()
 
-  # TODO : compare with check_hand
-  def check_positions(%__MODULE__{table: table}, :dealer) do
-    dealer_pos =
-      table
-      |> Table.check_hand(:dealer)
-
-    case dealer_pos do
-      :bust -> :bust
-      :blackjack -> :blackjack
-      :stand -> :stand
-      _v -> :hit
-    end
-  end
-
-  def check_positions(%__MODULE__{table: table} = game, player) when is_atom(player) do
-    player_pos =
-      table
-      |> Table.check_hand(player)
-
-    case player_pos do
-      # %{game | table: game.table |> Table.close_position(player)}
-      :bust ->
-        :bust
-
-      :blackjack ->
-        :blackjack
-
-      value ->
-        Surefire.Player.decide(
-          game.players[player],
-          "Position at #{value}. What to do ?",
-          %{
-            "Hit" => :hit,
-            "Stand" => :stand
-            # TODO : more options... Ref : https://en.wikipedia.org/wiki/Blackjack#Player_decisions
-          }
-        )
+      # stand
+      true ->
+        for p <- Map.keys(players), reduce: bj do
+          bj ->
+            # TODO : handle "push" when both are equal...
+            hand_comp = Hand.compare(bj.table.positions[p], bj.table.dealer)
+            # TODO : review actual cases (with tests) here
+            if hand_comp == :gt do
+              player_win(bj, p)
+            else
+              player_lose(bj, p)
+            end
+        end
     end
   end
 
@@ -203,7 +135,7 @@ defmodule Blackjack do
     %{
       game
       | players:
-          players |> Map.update(player, 0, fn p -> Surefire.Player.get(p, player_bet * 2) end),
+          players |> Map.update(player, 0, fn p -> Blackjack.Player.event(p, player_bet * 2) end),
         bets: bets,
         table: table |> Table.close_position(player)
     }

@@ -1,72 +1,53 @@
-
-
-
-
-defmodule Blackjack.Player.Auto do
-
-#  use GenServer
-  # TODO GenServer to isolate any potential random seed.
-  # BUT : some data is managed by game itself...
-
-
-  defstruct name: "Computer", credits: 42
-
-
-  def new(name, credits) do
-    %__MODULE__{name: name, credits: credits}
+defmodule Blackjack.Player do
+  defmodule PlayCommand do
+    defstruct id: nil, command: :stand
   end
 
-  defimpl Surefire.Player do
-
-
-    def id(player) do
-      player.id
-    end
-
-    def name(player) do
-      player.name
-    end
-
-    def credits(player) do
-      player.credits
-    end
-
-    def get(%Blackjack.Player.Auto{credits: c} = player, gain) do
-      %{player | credits: c + gain}
-    end
-
-    def bet(%Blackjack.Player.Auto{credits: c} = player, bet) do
-      %{ player | credits: c - bet}
-    end
-
-    def decide(%Blackjack.Player.Auto{} = player, prompt, choices) do
-
-    end
+  defmodule GainEvent do
+    defstruct id: nil, gain: 0
   end
-
-end
-
-
-
-defmodule Blackjack.Player.Interactive do
 
   # Note: this is to enforce in design that Blackjack depends on Surefire,
   # But Surefire already has most of mandatory data for a game...
   # some extra data can be added if needed by the game however.
-  defstruct sf: %Surefire.IExPlayer{},
+  defstruct sf: nil,
             extra_stuff: nil
 
-  def new() do
+  def new_interactive() do
     %__MODULE__{sf: Surefire.IExPlayer.new()}
   end
 
+  def new_test(name, credits) do
+    %__MODULE__{sf: Surefire.TestPlayer.new(name, credits)}
+  end
+
+  def event(%__MODULE__{} = player, gain) do
+    %GainEvent{id: Surefire.Player.id(player.sf), gain: gain}
+  end
+
+  def hit_stand(%__MODULE__{} = player, hit_or_stand)
+      when hit_or_stand in [:hit, :stand] do
+    %PlayCommand{id: Surefire.Player.id(player.sf), command: hit_or_stand}
+  end
+
+  def hit_or_stand(%__MODULE__{} = player, value) do
+    Surefire.Player.decide(
+      player.sf,
+      "Position at #{value}. What to do ?",
+      %{
+        "Hit" => hit_stand(player, :hit),
+        "Stand" => hit_stand(player, :stand)
+        # TODO : more options... Ref : https://en.wikipedia.org/wiki/Blackjack#Player_decisions
+      }
+    )
+  end
+
+  # TODO : automated (AI) player for multiplyer games...
 
   defimpl Surefire.Player do
-
     def id(player) do
       Surefire.Player.id(player.sf)
     end
-
 
     def name(player) do
       Surefire.Player.name(player.sf)
@@ -76,26 +57,23 @@ defmodule Blackjack.Player.Interactive do
       Surefire.Player.credits(player.sf)
     end
 
-    def bet(%Blackjack.Player.Interactive{} = player, bet) do
-      Surefire.Player.bet(player.sf, bet)
+    def bet(%Blackjack.Player{} = player, bet) do
+      %Blackjack.Player{player | sf: Surefire.Player.bet(player.sf, bet)}
     end
 
-    def get(%Blackjack.Player.Interactive{} = player, gain) do
-      Surefire.Player.get(player.sf, gain)
+    def get(%Blackjack.Player{} = player, gain) do
+      %Blackjack.Player{player | sf: Surefire.Player.get(player.sf, gain)}
     end
 
-    def decide(%Blackjack.Player.Interactive{} = player, prompt, choices) do
+    def decide(%Blackjack.Player{} = player, prompt, choices) do
+      # TODO : same structure as other functions...
       Surefire.Player.decide(player.sf, prompt, choices)
     end
   end
-
 end
 
-
-
-
 #
-#defmodule Blackjack.Player.Surefire do
+# defmodule Blackjack.Player.Surefire do
 #  defstruct surefire: %Surefire.IExPlayer{}
 #
 #  @behaviour Blackjack.Player
@@ -159,5 +137,4 @@ end
 #    end
 #
 #  end
-#end
-
+# end

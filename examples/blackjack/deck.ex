@@ -30,6 +30,11 @@ defmodule Blackjack.Deck do
     # we forbid implicit creation by setting to nil
     defstruct value: nil, color: nil
 
+    @type t :: %__MODULE__{
+            value: non_neg_integer(),
+            color: atom()
+          }
+
     def colors, do: [@hearts, @spades, @clubs, @diamonds]
 
     def values,

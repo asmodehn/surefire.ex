@@ -124,8 +124,7 @@ defmodule Surefire.IExPlayer do
           # loop on default(prbm with input...)
           -1 -> decide(player, prompt, choice_map)
           # extract value when key matches
-          # optionally modify player...
-          i -> {player, choice_map[Enum.at(keys, i)]}
+          i -> choice_map[Enum.at(keys, i)]
         end
     end
   end
