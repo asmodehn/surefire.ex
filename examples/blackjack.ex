@@ -11,14 +11,11 @@ defmodule Blackjack do
 
   """
 
-  import Blackjack.Deck, only: [deck: 0]
-
-  alias Blackjack.{Bets, Table, Hand}
+  alias Blackjack.Table
+  alias Blackjack.Event.{PlayerExit}
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
-            # TODO : shouldnt bets be on the table ??
-            bets: %Bets{},
             table: %Table{}
 
   # TODO : we should add the total house bank amount here...
@@ -36,8 +33,8 @@ defmodule Blackjack do
   end
 
   # TODO : new and bet are the same ? (blind bets -> start game ??)
-
-  def bet(%__MODULE__{bets: bets} = game, player, amount)
+  # semantics : open position... bet in the betting box
+  def bet(%__MODULE__{table: table} = game, player, amount)
       when is_atom(player) and is_number(amount) do
     players =
       if player not in Map.keys(game.players) do
@@ -50,7 +47,7 @@ defmodule Blackjack do
     %{
       game
       | players: Map.update!(players, player, fn p -> p |> Surefire.Player.bet(amount) end),
-        bets: bets |> Bets.player_bet(player, amount)
+        table: table |> Table.bet(player, amount)
     }
   end
 
@@ -58,10 +55,8 @@ defmodule Blackjack do
     Only take in the game players who have already bet something...
   other player stay in game, but don't receive cards and cannot play.
   """
-  def deal(%__MODULE__{bets: bets} = game) do
-    players = Bets.players(bets)
-
-    table = Table.deal(game.table, players)
+  def deal(%__MODULE__{} = game) do
+    table = Table.deal(game.table)
 
     %{game | table: table}
   end
@@ -94,52 +89,20 @@ defmodule Blackjack do
     To the end, where the dealer get cards until >17
   """
 
-  def resolve(%__MODULE__{players: players, table: table} = bj)
-      when is_atom(table.dealer.value) do
-    case table.dealer.value do
-      :bust ->
-        for p <- Map.keys(players), reduce: bj do
-          acc ->
-            {player_bet, bets} = acc.bets |> Bets.player_end(p)
-
-            %{
-              acc
-              | bets: bets,
-                table: table |> Table.close_position(p),
-                players:
-                  acc.players
-                  |> Map.update(p, 0, fn
-                    pp -> Blackjack.Player.event(pp, player_bet * 2)
-                  end)
-            }
-        end
-
-      :blackjack ->
-        for p <- Map.keys(players), reduce: bj do
-          # TODO : this depends on player's hand value ...
-          acc ->
-            {_player_bet, bets} = acc.bets |> Bets.player_end(p)
-            %{acc | bets: bets, table: table |> Table.close_position(p)}
-        end
-    end
-  end
-
-  def resolve(%__MODULE__{players: players, table: table} = bj)
-      when is_integer(table.dealer.value) do
+  def resolve(%__MODULE__{players: players, table: table} = bj) do
     for p <- Map.keys(players), reduce: bj do
-      bj ->
-        {table, %Blackjack.Event.PlayerExit{id: ^p, gain: gain}} = bj.table |> Table.resolve(p)
-        {player_bet, bets} = bj.bets |> Bets.player_end(p)
+      acc ->
+        {updated_table, %PlayerExit{id: ^p, gain: gain}} = table |> Table.resolve(p)
 
-        players =
-          if gain do
-            bj.players
-            |> Map.update(p, 0, fn pp -> Blackjack.Player.event(pp, player_bet * 2) end)
-          else
-            bj.players
-          end
-
-        %{bj | table: table, bets: bets, players: players}
+        %{
+          acc
+          | table: updated_table,
+            players:
+              acc.players
+              |> Map.update(p, 0, fn
+                pp -> Blackjack.Player.event(pp, gain)
+              end)
+        }
     end
   end
 end

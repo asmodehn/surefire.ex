@@ -133,9 +133,23 @@ defmodule Blackjack.TableTest do
     assert test_table_bust.positions[:alice].value == :bust
   end
 
-  describe "deal/2 " do
+  describe "bet/3" do
+    test "accepts the bet of a player" do
+      table = Table.new() |> Table.bet(:bob, 45)
+
+      # TODO :maybe this is one level too much ?
+      assert table.bets == %Blackjack.Bets{bets: [bob: 45]}
+    end
+  end
+
+  describe "deal/1 " do
     test "deals two cards to each player and one card to the dealer" do
-      table = Table.new() |> Table.deal([:alice, :bob, :charlie])
+      table =
+        Table.new()
+        |> Table.bet(:alice, 12)
+        |> Table.bet(:bob, 45)
+        |> Table.bet(:charlie, 23)
+        |> Table.deal()
 
       assert Hand.size(table.positions[:alice]) == 2
       assert Hand.size(table.positions[:bob]) == 2

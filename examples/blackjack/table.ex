@@ -1,12 +1,18 @@
 defmodule Blackjack.Table do
-  alias Blackjack.Hand
+  alias Blackjack.{Hand, Bets}
 
   import Blackjack.Deck, only: [deck: 0]
 
   # TODO : rounds, one game after another, using the same shoe.
   @derive {Inspect, only: [:dealer, :positions]}
-  defstruct shoe: [], dealer: %Hand{}, positions: %{}
-  # TODO : clear up position & hand confusion...
+  defstruct shoe: [],
+            bets: %Bets{},
+            dealer: %Hand{},
+            # TODO : number max of betting boxes !
+            positions: %{}
+
+  # Note: on player can play multiple  positions/boxes.
+  # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
   def new(_decks \\ 3) do
     %__MODULE__{
@@ -44,6 +50,14 @@ defmodule Blackjack.Table do
 
   # TODO : next_card and card_to maybe in another module (linked with shoe...)
 
+  def bet(%__MODULE__{bets: bets} = table, player, amount)
+      when is_atom(player) and is_number(amount) do
+    %{
+      table
+      | bets: bets |> Bets.player_bet(player, amount)
+    }
+  end
+
   def maybe_card_to(%__MODULE__{dealer: dealer_hand} = table, :dealer) do
     cond do
       dealer_hand.value < 17 ->
@@ -74,7 +88,9 @@ defmodule Blackjack.Table do
   @doc ~s"""
     deals the cards to all players once, then the dealer, then all players again.
   """
-  def deal(%__MODULE__{} = table, player_ids) do
+  def deal(%__MODULE__{bets: bets} = table) do
+    player_ids = Bets.players(bets)
+
     (player_ids ++ [:dealer] ++ player_ids)
     |> Enum.reduce(table, fn
       p, t -> next_card(t) |> card_to(p)
@@ -111,9 +127,9 @@ defmodule Blackjack.Table do
     end
   end
 
-  def resolve(%__MODULE__{} = table, player) when is_atom(player) do
+  def resolve(%__MODULE__{positions: pos} = table, player) when is_atom(player) do
     # TODO : handle "push" when both are equal...
-    hand_comp = Hand.compare(table.positions[player], table.dealer)
+    hand_comp = Hand.compare(pos[player], table.dealer)
     # TODO : review actual cases (with tests) here
     if hand_comp == :gt do
       player_win(table, player)
@@ -122,21 +138,22 @@ defmodule Blackjack.Table do
     end
   end
 
-  def player_win(%__MODULE__{} = table, player)
+  def player_win(%__MODULE__{bets: bets, positions: pos} = table, player)
       when is_atom(player) do
-    # TODO : move bets onto the table, like positions/hands...
+    {player_bet, bets} = bets |> Bets.player_end(player)
+
     {
-      table |> Table.close_position(player),
-      # TODO : change with amount
-      %Blackjack.Event.PlayerExit{id: player, gain: true}
+      %{table | bets: bets, positions: pos |> Map.drop([player])},
+      %Blackjack.Event.PlayerExit{id: player, gain: player_bet * 2}
     }
   end
 
-  def player_lose(%__MODULE__{} = table, player) when is_atom(player) do
-    {table |> Table.close_position(player), %Blackjack.Event.PlayerExit{id: player, gain: false}}
-  end
+  def player_lose(%__MODULE__{bets: bets, positions: pos} = table, player) when is_atom(player) do
+    {_player_bet, bets} = bets |> Bets.player_end(player)
 
-  def close_position(%__MODULE__{positions: pos} = table, player) do
-    %{table | positions: pos |> Map.drop([player])}
+    {
+      %{table | bets: bets, positions: pos |> Map.drop([player])},
+      %Blackjack.Event.PlayerExit{id: player, gain: 0}
+    }
   end
 end

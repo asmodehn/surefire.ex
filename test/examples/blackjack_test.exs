@@ -1,8 +1,6 @@
 defmodule BlackjackTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.Deck.Card
-
   test "one-player game can go on until the end" do
     player = Blackjack.Player.new_test("alice", 42)
 
