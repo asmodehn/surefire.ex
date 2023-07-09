@@ -44,6 +44,16 @@ defmodule Blackjack.Table do
 
   # TODO : next_card and card_to maybe in another module (linked with shoe...)
 
+  def maybe_card_to(%__MODULE__{dealer: dealer_hand} = table, :dealer) do
+    cond do
+      dealer_hand.value < 17 ->
+        table |> next_card() |> card_to(:dealer)
+
+      true ->
+        table
+    end
+  end
+
   def maybe_card_to(%__MODULE__{positions: positions} = table, %Blackjack.Player{} = player) do
     p = Surefire.Player.id(player)
 
@@ -87,6 +97,44 @@ defmodule Blackjack.Table do
   #
   #    # TODO : loop until the end of player turns
   #  end
+
+  def play(%__MODULE__{} = table, :dealer) do
+    cond do
+      table.dealer.value < 17 ->
+        # we recurse until value>=17
+        table |> next_card() |> card_to(:dealer) |> play(:dealer)
+
+      # we let the table as is, resolution will be done in another place,
+      # as it depends on other players as well...
+      true ->
+        table
+    end
+  end
+
+  def resolve(%__MODULE__{} = table, player) when is_atom(player) do
+    # TODO : handle "push" when both are equal...
+    hand_comp = Hand.compare(table.positions[player], table.dealer)
+    # TODO : review actual cases (with tests) here
+    if hand_comp == :gt do
+      player_win(table, player)
+    else
+      player_lose(table, player)
+    end
+  end
+
+  def player_win(%__MODULE__{} = table, player)
+      when is_atom(player) do
+    # TODO : move bets onto the table, like positions/hands...
+    {
+      table |> Table.close_position(player),
+      # TODO : change with amount
+      %Blackjack.Event.PlayerExit{id: player, gain: true}
+    }
+  end
+
+  def player_lose(%__MODULE__{} = table, player) when is_atom(player) do
+    {table |> Table.close_position(player), %Blackjack.Event.PlayerExit{id: player, gain: false}}
+  end
 
   def close_position(%__MODULE__{positions: pos} = table, player) do
     %{table | positions: pos |> Map.drop([player])}

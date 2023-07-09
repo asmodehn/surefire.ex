@@ -75,6 +75,8 @@ defmodule Blackjack do
       game ->
         if is_atom(table.positions[p].value) do
           # blackjack or bust: skip this... until resolve (???)
+          # TODO : bust should exit the player from the game immediately (will not win in any case)
+          # => can only become "spectator" (useful ??)
           game
         else
           %{game | table: table |> Table.maybe_card_to(game.players[p])}
@@ -83,6 +85,9 @@ defmodule Blackjack do
     end
 
     # TODO : loop until the end of player turns
+
+    # Resolve dealer after all players
+    %{game | table: table |> Table.play(:dealer)}
   end
 
   @doc ~s"""
@@ -94,55 +99,47 @@ defmodule Blackjack do
     case table.dealer.value do
       :bust ->
         for p <- Map.keys(players), reduce: bj do
-          acc -> player_win(acc, p)
+          acc ->
+            {player_bet, bets} = acc.bets |> Bets.player_end(p)
+
+            %{
+              acc
+              | bets: bets,
+                table: table |> Table.close_position(p),
+                players:
+                  acc.players
+                  |> Map.update(p, 0, fn
+                    pp -> Blackjack.Player.event(pp, player_bet * 2)
+                  end)
+            }
         end
 
       :blackjack ->
         for p <- Map.keys(players), reduce: bj do
-          acc -> player_lose(acc, p)
+          # TODO : this depends on player's hand value ...
+          acc ->
+            {_player_bet, bets} = acc.bets |> Bets.player_end(p)
+            %{acc | bets: bets, table: table |> Table.close_position(p)}
         end
     end
   end
 
   def resolve(%__MODULE__{players: players, table: table} = bj)
       when is_integer(table.dealer.value) do
-    cond do
-      # TODO : this is a (mandatory) dealer decision -> somewhere else or not ?
-      # hit !
-      table.dealer.value < 17 ->
-        %{bj | table: bj.table |> Table.next_card() |> Table.card_to(:dealer)} |> resolve()
+    for p <- Map.keys(players), reduce: bj do
+      bj ->
+        {table, %Blackjack.Event.PlayerExit{id: ^p, gain: gain}} = bj.table |> Table.resolve(p)
+        {player_bet, bets} = bj.bets |> Bets.player_end(p)
 
-      # stand
-      true ->
-        for p <- Map.keys(players), reduce: bj do
-          bj ->
-            # TODO : handle "push" when both are equal...
-            hand_comp = Hand.compare(bj.table.positions[p], bj.table.dealer)
-            # TODO : review actual cases (with tests) here
-            if hand_comp == :gt do
-              player_win(bj, p)
-            else
-              player_lose(bj, p)
-            end
-        end
+        players =
+          if gain do
+            bj.players
+            |> Map.update(p, 0, fn pp -> Blackjack.Player.event(pp, player_bet * 2) end)
+          else
+            bj.players
+          end
+
+        %{bj | table: table, bets: bets, players: players}
     end
-  end
-
-  def player_win(%__MODULE__{players: players, table: table} = game, player)
-      when is_atom(player) do
-    {player_bet, bets} = game.bets |> Bets.player_end(player)
-
-    %{
-      game
-      | players:
-          players |> Map.update(player, 0, fn p -> Blackjack.Player.event(p, player_bet * 2) end),
-        bets: bets,
-        table: table |> Table.close_position(player)
-    }
-  end
-
-  def player_lose(%__MODULE__{table: table} = game, player) when is_atom(player) do
-    {_player_bet, bets} = game.bets |> Bets.player_end(player)
-    %{game | bets: bets, table: table |> Table.close_position(player)}
   end
 end
