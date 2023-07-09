@@ -3,6 +3,8 @@ defprotocol Surefire.Player do
   def name(player)
   def credits(player)
 
+  def merge(player, existing_player_data)
+
   def get(player, gain)
   def bet(player, bet)
 

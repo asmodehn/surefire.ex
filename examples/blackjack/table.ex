@@ -4,7 +4,7 @@ defmodule Blackjack.Table do
   import Blackjack.Deck, only: [deck: 0]
 
   # TODO : rounds, one game after another, using the same shoe.
-  @derive {Inspect, only: [:dealer, :positions]}
+  @derive {Inspect, only: [:dealer, :bets, :positions]}
   defstruct shoe: [],
             bets: %Bets{},
             dealer: %Hand{},

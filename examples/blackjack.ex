@@ -4,10 +4,12 @@ defmodule Blackjack do
 
     To create players and run a quick game:
 
-      iex> me = Blackjack.Player.Interactive.new()
+      iex> me = Blackjack.Player.new_interactive()
       iex> bj = Blackjack.new([me])
-      iex> bj = bj |> Blackjack.bet(sureFire.Player.id(me), 21)
-      ies> bj = bj |> Blackjack.deal()
+      iex> bj = bj |> Blackjack.bet(Surefire.Player.id(me), 21)
+      iex> bj = bj |> Blackjack.deal()
+      iex> bj = bj |> Blackjack.play()
+      iex> bj = bj |> Blackjack.resolve()
 
   """
 
@@ -23,31 +25,29 @@ defmodule Blackjack do
   @doc """
     Register players for a new game.
   """
-  def new(players) do
+  def new() do
     %__MODULE__{
-      players: players |> Enum.map(fn p -> {Surefire.Player.id(p), p} end) |> Enum.into(%{}),
       table: Table.new()
     }
-
-    # TODO : loop by adding players via add_player/2
   end
 
   # TODO : new and bet are the same ? (blind bets -> start game ??)
   # semantics : open position... bet in the betting box
-  def bet(%__MODULE__{table: table} = game, player, amount)
-      when is_atom(player) and is_number(amount) do
+  def bet(%__MODULE__{table: table} = game, %Blackjack.Player{} = player, amount)
+      when is_number(amount) do
+    player_id = Surefire.Player.id(player)
+
     players =
-      if player not in Map.keys(game.players) do
-        # TODO : atom or not ???
-        game.players ++ [player]
+      if player_id not in Map.keys(game.players) do
+        game.players |> Map.merge(Map.new([{player_id, player}]))
       else
         game.players
       end
 
     %{
       game
-      | players: Map.update!(players, player, fn p -> p |> Surefire.Player.bet(amount) end),
-        table: table |> Table.bet(player, amount)
+      | players: Map.update!(players, player_id, fn p -> p |> Surefire.Player.bet(amount) end),
+        table: table |> Table.bet(player_id, amount)
     }
   end
 
