@@ -22,6 +22,8 @@ defmodule Blackjack.Deck do
     # also one !
     @ace :ace
 
+    # TODO: to prevent using the atoms around without checks, maybe we should make these functions, somehow ??
+
     @hearts :hearts
     @spades :spades
     @clubs :clubs

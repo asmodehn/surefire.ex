@@ -74,6 +74,8 @@ defmodule Blackjack.Hand do
       hl.value == hr.value -> :eq
       hl.value == :blackjack -> :gt
       hl.value == :bust -> :lt
+      hr.value == :blackjack -> :lt
+      hr.value == :bust -> :gt
       true -> raise %RuntimeError{message: "Unhandled compare/2 case: #{hl} ~ #{hr}"}
     end
   end
