@@ -112,4 +112,15 @@ defmodule Blackjack.Deck do
     #    |> IO.inspect()
     |> Macro.escape()
   end
+
+  @spec deal(Enumerable.t(), Collectable.t()) :: {Collectable.t(), Enumerable.t()}
+  @spec deal(Enumerable.t(), Collectable.t(), integer) :: {Collectable.t(), Enumerable.t()}
+  def deal(a_deck, hand, amount \\ 1) when is_list(a_deck) do
+    new_hand =
+      a_deck
+      |> Enum.take(amount)
+      |> Enum.into(hand)
+
+    {new_hand, a_deck |> Enum.drop(amount)}
+  end
 end

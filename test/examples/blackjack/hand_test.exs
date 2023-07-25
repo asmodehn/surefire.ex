@@ -4,20 +4,19 @@ defmodule Blackjack.HandTest do
   alias Blackjack.Hand
   alias Blackjack.Deck.Card
 
-  describe "new/1" do
-    test "creates a hand with a list of card, and the value of the card" do
-      card = %Card{value: :nine, color: :hearts}
-      hand = Hand.new(card)
+  describe "new/0" do
+    test "creates a hand with an empty list of card, and 0 value" do
+      hand = Hand.new()
 
-      assert hand.cards == [card]
-      assert hand.value == 9
+      assert hand.cards == []
+      assert hand.value == 0
     end
   end
 
   describe "add_card/2" do
     test "adds a card to a preexisting hand, calculating the value of the hand" do
       card = %Card{value: :nine, color: :hearts}
-      hand = Hand.new(card)
+      hand = Hand.new() |> Hand.add_card(card)
 
       second_card = %Card{value: :jack, color: :spades}
       new_hand = Hand.add_card(hand, second_card)
@@ -28,7 +27,7 @@ defmodule Blackjack.HandTest do
 
     test "adds a card to a preexisting hand, setting value to :bust if it is the case" do
       card = %Card{value: :nine, color: :hearts}
-      hand = Hand.new(card)
+      hand = Hand.new() |> Hand.add_card(card)
 
       second_card = %Card{value: :jack, color: :spades}
       new_hand = Hand.add_card(hand, second_card)
@@ -42,7 +41,7 @@ defmodule Blackjack.HandTest do
 
     test "adds a card to a preexisting hand, setting value to :blackjack if it is the case" do
       card = %Card{value: :ace, color: :hearts}
-      hand = Hand.new(card)
+      hand = Hand.new() |> Hand.add_card(card)
 
       second_card = %Card{value: :jack, color: :spades}
       new_hand = Hand.add_card(hand, second_card)
@@ -55,11 +54,13 @@ defmodule Blackjack.HandTest do
   describe "compare/2" do
     test " <21 and :blackjack -> :lt" do
       hand_left =
-        Hand.new(%Card{value: :three, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :three, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :ace, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :lt
@@ -67,11 +68,13 @@ defmodule Blackjack.HandTest do
 
     test " <21 and :bust -> :gt" do
       hand_left =
-        Hand.new(%Card{value: :three, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :three, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :nine, color: :diamonds})
         |> Hand.add_card(%Card{value: :eight, color: :clubs})
 
@@ -80,11 +83,13 @@ defmodule Blackjack.HandTest do
 
     test " A <21 and B<21 then A < B => :lt" do
       hand_left =
-        Hand.new(%Card{value: :three, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :three, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :nine, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :lt
@@ -92,11 +97,13 @@ defmodule Blackjack.HandTest do
 
     test " A <21 and B<21 then A == B => :eq" do
       hand_left =
-        Hand.new(%Card{value: :nine, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :nine, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :nine, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :eq
@@ -104,11 +111,13 @@ defmodule Blackjack.HandTest do
 
     test " A <21 and B <21 then A > B => :gt" do
       hand_left =
-        Hand.new(%Card{value: :nine, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :nine, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :three, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :gt
@@ -116,11 +125,13 @@ defmodule Blackjack.HandTest do
 
     test " A :blackjack and B <21 => :gt" do
       hand_left =
-        Hand.new(%Card{value: :ace, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :ace, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :three, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :gt
@@ -128,12 +139,14 @@ defmodule Blackjack.HandTest do
 
     test " A :bust and B <21  => :lt" do
       hand_left =
-        Hand.new(%Card{value: :nine, color: :hearts})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :nine, color: :hearts})
         |> Hand.add_card(%Card{value: :jack, color: :clubs})
         |> Hand.add_card(%Card{value: :eight, color: :clubs})
 
       hand_right =
-        Hand.new(%Card{value: :queen, color: :spades})
+        Hand.new()
+        |> Hand.add_card(%Card{value: :queen, color: :spades})
         |> Hand.add_card(%Card{value: :three, color: :diamonds})
 
       assert Hand.compare(hand_left, hand_right) == :lt

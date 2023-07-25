@@ -3,9 +3,10 @@ defmodule Blackjack.Hand do
 
   defstruct cards: [], value: 0
 
+  @type hand_value :: non_neg_integer | :blackjack | :bust
   @type t :: %__MODULE__{
           cards: [Card.t()],
-          value: non_neg_integer | :blackjack | :bust
+          value: hand_value
         }
 
   defp card_value(%Card{value: v}, opts \\ [low_ace: false]) do
@@ -28,7 +29,14 @@ defmodule Blackjack.Hand do
     end
   end
 
-  defp bust_blackjack(hand_value) do
+  @spec value([Card.t()]) :: hand_value
+  def value(cards) when is_list(cards) do
+    hand_value = cards |> Enum.map(&card_value/1) |> Enum.sum()
+
+    if hand_value <= 21,
+      do: hand_value,
+      else: cards |> Enum.map(fn c -> card_value(c, low_ace: true) end) |> Enum.sum()
+
     cond do
       hand_value > 21 -> :bust
       hand_value == 21 -> :blackjack
@@ -36,21 +44,13 @@ defmodule Blackjack.Hand do
     end
   end
 
-  def new(%Card{} = c) do
-    # Note : first card is always evaluated with high value for an ace
-    %__MODULE__{cards: [c], value: card_value(c)}
+  def new() do
+    %__MODULE__{cards: [], value: 0}
   end
 
   def add_card(%__MODULE__{} = hand, %Card{} = c) do
     cards = hand.cards ++ [c]
-    hand_value = cards |> Enum.map(&card_value/1) |> Enum.sum()
-
-    hand_value =
-      if hand_value <= 21,
-        do: hand_value,
-        else: cards |> Enum.map(fn c -> card_value(c, low_ace: true) end) |> Enum.sum()
-
-    %{hand | cards: cards, value: bust_blackjack(hand_value)}
+    %{hand | cards: cards, value: value(cards)}
   end
 
   def size(%__MODULE__{} = hand) do
@@ -95,6 +95,25 @@ defmodule Blackjack.Hand do
       cards = for c <- hand.cards, do: "#{c}"
 
       Enum.join(cards, ",") <> ": #{hand.value}"
+    end
+  end
+
+  defimpl Collectable do
+    def into(%Blackjack.Hand{} = hand) do
+      collector_fun = fn
+        hand_acc, {:cont, card} ->
+          Blackjack.Hand.add_card(hand_acc, card)
+
+        hand_acc, :done ->
+          hand_acc
+
+        _hand_acc, :halt ->
+          :ok
+      end
+
+      initial_acc = hand
+
+      {initial_acc, collector_fun}
     end
   end
 end

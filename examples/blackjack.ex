@@ -100,6 +100,7 @@ defmodule Blackjack do
             players:
               acc.players
               |> Map.update(p, 0, fn
+                # TODO : fix this to update player instead of replacing with event (??)
                 pp -> Blackjack.Player.event(pp, gain)
               end)
         }

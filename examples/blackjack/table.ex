@@ -6,6 +6,7 @@ defmodule Blackjack.Table do
   # TODO : rounds, one game after another, using the same shoe.
   @derive {Inspect, only: [:dealer, :bets, :positions]}
   defstruct shoe: [],
+            # TODO : maybe move bets out of table (different concerns...) ?
             bets: %Bets{},
             dealer: %Hand{},
             # TODO : number max of betting boxes !
@@ -20,35 +21,25 @@ defmodule Blackjack.Table do
     }
   end
 
-  def next_card(%__MODULE__{} = table) do
-    [card | shoe] = table.shoe
-    # TODO : into a struct ?(event-like)
-    {%{table | shoe: shoe}, card}
+  # TODO : prevent creating a player caller "dealer"...) or work around the issue somehow ??
+  def deal_card_to(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer) do
+    {new_hand, new_shoe} = Blackjack.Deck.deal(shoe, dealer_hand)
+    %{table | shoe: new_shoe, dealer: new_hand}
   end
 
-  def card_to({%__MODULE__{} = table, card}, :dealer) do
-    %{
-      table
-      | dealer: Hand.add_card(table.dealer, card)
-        #    |> IO.inspect()
-    }
-  end
+  def deal_card_to(%__MODULE__{shoe: shoe, positions: positions} = table, player_id)
+      when is_atom(player_id) do
+    player_hand = positions[player_id]
 
-  def card_to({%__MODULE__{} = table, card}, player) do
-    %{
-      table
-      | positions:
-          table.positions
-          |> Map.update(
-            player,
-            Hand.new(card),
-            fn player_hand -> player_hand |> Hand.add_card(card) end
-          )
-        #                   |> IO.inspect()
-    }
-  end
+    {new_hand, new_shoe} =
+      case player_hand do
+        # TODO : maybe the other way ? hand receiving a card from a enum of cards???
+        nil -> Blackjack.Deck.deal(shoe, Blackjack.Hand.new())
+        hand -> Blackjack.Deck.deal(shoe, hand)
+      end
 
-  # TODO : next_card and card_to maybe in another module (linked with shoe...)
+    %{table | shoe: new_shoe, positions: positions |> Map.put(player_id, new_hand)}
+  end
 
   def bet(%__MODULE__{bets: bets} = table, player, amount)
       when is_atom(player) and is_number(amount) do
@@ -61,7 +52,7 @@ defmodule Blackjack.Table do
   def maybe_card_to(%__MODULE__{dealer: dealer_hand} = table, :dealer) do
     cond do
       dealer_hand.value < 17 ->
-        table |> next_card() |> card_to(:dealer)
+        table |> deal_card_to(:dealer)
 
       true ->
         table
@@ -81,7 +72,7 @@ defmodule Blackjack.Table do
     #    and player confirming action (to track for replays...)
     case act do
       :stand -> table
-      :hit -> table |> next_card() |> card_to(p)
+      :hit -> table |> deal_card_to(p)
     end
   end
 
@@ -93,7 +84,7 @@ defmodule Blackjack.Table do
 
     (player_ids ++ [:dealer] ++ player_ids)
     |> Enum.reduce(table, fn
-      p, t -> next_card(t) |> card_to(p)
+      p, t -> t |> deal_card_to(p)
     end)
 
     # TODO : check of bust or blackjack here already...
@@ -118,7 +109,7 @@ defmodule Blackjack.Table do
     cond do
       table.dealer.value < 17 ->
         # we recurse until value>=17
-        table |> next_card() |> card_to(:dealer) |> play(:dealer)
+        table |> deal_card_to(:dealer) |> play(:dealer)
 
       # we let the table as is, resolution will be done in another place,
       # as it depends on other players as well...
