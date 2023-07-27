@@ -99,9 +99,13 @@ defmodule Blackjack do
           | table: updated_table,
             players:
               acc.players
-              |> Map.update(p, 0, fn
-                # TODO : fix this to update player instead of replacing with event (??)
-                pp -> Blackjack.Player.event(pp, gain)
+              |> Map.update!(p, fn
+                pp ->
+                  %Blackjack.Player.GainEvent{id: pp_id, gain: gain} =
+                    Blackjack.Player.event(pp, gain)
+
+                  # payers[pp_id] == pp
+                  Surefire.Player.get(players[pp_id], gain)
               end)
         }
     end
