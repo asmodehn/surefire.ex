@@ -16,8 +16,8 @@ defmodule Mix.Tasks.Blackjack do
   def run(_) do
     # TODO : instructions to play blackjack over IEx.
     IO.puts("Create your player data : > me = Blackjack.Player.new_interactive()")
-    IO.puts("Start a game of Blackjack : > bj = Blackjack.new([me]) ")
-    IO.puts("Place a bet : > Blackjack.bet(bj, Surefire.Player.id(me), 51)")
+    IO.puts("Start a game of Blackjack : > bj = Blackjack.new() ")
+    IO.puts("Place a bet : > Blackjack.bet(bj, me, 51)")
     IO.puts("Deal cards : > Blackjack.deal(bj)")
     IO.puts("Interactive Play : > Blackjack.play(bj)")
     IO.puts("Resolve : > Blackjack.resolve(bj)")

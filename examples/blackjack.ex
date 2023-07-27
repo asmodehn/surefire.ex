@@ -5,13 +5,19 @@ defmodule Blackjack do
     To create players and run a quick game:
 
       iex> me = Blackjack.Player.new_interactive()
-      iex> bj = Blackjack.new([me])
-      iex> bj = bj |> Blackjack.bet(Surefire.Player.id(me), 21)
+      iex> bj = Blackjack.new()
+      iex> bj = bj |> Blackjack.bet(me, 21)
       iex> bj = bj |> Blackjack.deal()
       iex> bj = bj |> Blackjack.play()
       iex> bj = bj |> Blackjack.resolve()
 
   """
+  IO.puts("Create your player data : > me = Blackjack.Player.new_interactive()")
+  IO.puts("Start a game of Blackjack : > bj = Blackjack.new() ")
+  IO.puts("Place a bet : > Blackjack.bet(bj, me, 51)")
+  IO.puts("Deal cards : > Blackjack.deal(bj)")
+  IO.puts("Interactive Play : > Blackjack.play(bj)")
+  IO.puts("Resolve : > Blackjack.resolve(bj)")
 
   alias Blackjack.Table
   alias Blackjack.Event.{PlayerExit}
@@ -66,23 +72,26 @@ defmodule Blackjack do
   """
   def play(%__MODULE__{players: players, table: table} = game) do
     # TODO: make sure somehow that all players who did bet have a hand.
-    for p <- Map.keys(players), reduce: game do
-      game ->
-        if is_atom(table.positions[p].value) do
-          # blackjack or bust: skip this... until resolve (???)
-          # TODO : bust should exit the player from the game immediately (will not win in any case)
-          # => can only become "spectator" (useful ??)
-          game
-        else
-          %{game | table: table |> Table.maybe_card_to(game.players[p])}
-          # ? TODO: recurse here or after whole loop ?
-        end
-    end
+    played_game =
+      for p <- Map.keys(players), reduce: game do
+        game ->
+          IO.inspect("#{p} turn...")
+
+          if is_atom(table.positions[p].value) do
+            # blackjack or bust: skip this... until resolve (???)
+            # TODO : bust should exit the player from the game immediately (will not win in any case)
+            # => can only become "spectator" (useful ??)
+            game
+          else
+            %{game | table: table |> Table.maybe_card_to(game.players[p])}
+            # ? TODO: recurse here or after whole loop ?
+          end
+      end
 
     # TODO : loop until the end of player turns
 
     # Resolve dealer after all players
-    %{game | table: table |> Table.play(:dealer)}
+    %{played_game | table: played_game.table |> Table.play(:dealer)}
   end
 
   @doc ~s"""
