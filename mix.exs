@@ -37,12 +37,12 @@ defmodule Surefire.MixProject do
       {:stream_data, "~> 0.5"},
       {:math, " ~> 0.7"},
       {:ex_prompt, "~> 0.1.5"},
-      {:fsmx, "~> 0.2.0"},
       {:exqlite, "~> 0.13"},
       {:gen_state_machine, "3.0.0"},
 
       # dev tools
-      {:committee, "~> 1.0.0", only: :dev, runtime: false}
+      {:committee, "~> 1.0.0", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 end

@@ -6,7 +6,7 @@ defmodule Blackjack.Table do
   # TODO : rounds, one game after another, using the same shoe.
   @derive {Inspect, only: [:dealer, :bets, :positions]}
   defstruct shoe: [],
-            # TODO : maybe move bets out of table (different concerns...) ?
+            # TODO : maybe move bets out of table (different concerns...) ? => into a round/game !
             bets: %Bets{},
             dealer: %Hand{},
             # TODO : number max of betting boxes !
@@ -49,30 +49,44 @@ defmodule Blackjack.Table do
     }
   end
 
-  def maybe_card_to(%__MODULE__{dealer: dealer_hand} = table, :dealer) do
-    cond do
-      dealer_hand.value < 17 ->
-        table |> deal_card_to(:dealer)
-
-      true ->
-        table
-    end
+  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
+      when dealer_hand.value >= 17
+      when is_atom(dealer_hand.value) do
+    table
   end
 
-  def maybe_card_to(%__MODULE__{positions: positions} = table, %Blackjack.Player{} = player) do
-    p = Surefire.Player.id(player)
+  def play(%__MODULE__{} = table, :dealer) do
+    table
+    |> deal_card_to(:dealer)
+    # and recurse until >= 17 or bust or blackjack
+    |> play(:dealer)
+  end
 
-    %Blackjack.Player.PlayCommand{id: ^p, command: act} =
-      Blackjack.Player.hit_or_stand(
-        player,
-        positions[p].value
-      )
+  @doc """
+  Player turn on the table. identity if position is an atom (bust or blackjack).
+  Otherwise, a card may be dealt.
+  """
+  def play(%__MODULE__{positions: positions} = table, player_id, player_request) do
+    if is_atom(positions[player_id].value) do
+      # Ref from wikipedia:
+      # A hand can "hit" as often as desired until the total is 21 or more.
+      # Players must stand on a total of 21.
+      table
+    else
+      %Blackjack.Player.PlayCommand{id: ^player_id, command: act} =
+        player_request.(positions[player_id].value)
 
-    # TODO :  a more clean/formal way to requesting from player,
-    #    and player confirming action (to track for replays...)
-    case act do
-      :stand -> table
-      :hit -> table |> deal_card_to(p)
+      # TODO :  a more clean/formal way to requesting from player,
+      #    and player confirming action (to track for replays...)
+      case act do
+        :stand ->
+          table
+
+        :hit ->
+          table
+          |> deal_card_to(player_id)
+          |> play(player_id, player_request)
+      end
     end
   end
 
@@ -104,19 +118,19 @@ defmodule Blackjack.Table do
   #
   #    # TODO : loop until the end of player turns
   #  end
-
-  def play(%__MODULE__{} = table, :dealer) do
-    cond do
-      table.dealer.value < 17 ->
-        # we recurse until value>=17
-        table |> deal_card_to(:dealer) |> play(:dealer)
-
-      # we let the table as is, resolution will be done in another place,
-      # as it depends on other players as well...
-      true ->
-        table
-    end
-  end
+  #
+  #  def play(%__MODULE__{} = table, :dealer) do
+  #    cond do
+  #      table.dealer.value < 17 ->
+  #        # we recurse until value>=17
+  #        table |> deal_card_to(:dealer) |> play(:dealer)
+  #
+  #      # we let the table as is, resolution will be done in another place,
+  #      # as it depends on other players as well...
+  #      true ->
+  #        table
+  #    end
+  #  end
 
   def resolve(%__MODULE__{positions: pos} = table, player) when is_atom(player) do
     # TODO : handle "push" when both are equal...

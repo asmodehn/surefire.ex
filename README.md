@@ -3,8 +3,12 @@
 Surefire is a package helping you write simple betting games that are somewhat "cost-aware".
 Basic Money management is enforced by Surefire, aiming to minimize losses of the player over the long term.
 
-To play with it, a bunch of examples are provided:
+To play with it, some examples are provided:
 - `iex -S mix blackjack`
+
+Because of Surefire's concerns, each game can be played multiple times, as in real life,
+with an initial amount of credits. It is therefore possible to learn gameplay, discover game strategies, 
+and adjust the amount of games to follow the basic "quitting while ahead" strategy as well.
 
 It provides: (Roadmap)
  

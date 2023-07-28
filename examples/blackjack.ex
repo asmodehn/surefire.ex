@@ -12,12 +12,6 @@ defmodule Blackjack do
       iex> bj = bj |> Blackjack.resolve()
 
   """
-  IO.puts("Create your player data : > me = Blackjack.Player.new_interactive()")
-  IO.puts("Start a game of Blackjack : > bj = Blackjack.new() ")
-  IO.puts("Place a bet : > Blackjack.bet(bj, me, 51)")
-  IO.puts("Deal cards : > Blackjack.deal(bj)")
-  IO.puts("Interactive Play : > Blackjack.play(bj)")
-  IO.puts("Resolve : > Blackjack.resolve(bj)")
 
   alias Blackjack.Table
   alias Blackjack.Event.{PlayerExit}
@@ -25,6 +19,8 @@ defmodule Blackjack do
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
             table: %Table{}
+
+  # TODO : rounds: []
 
   # TODO : we should add the total house bank amount here...
 
@@ -36,6 +32,8 @@ defmodule Blackjack do
       table: Table.new()
     }
   end
+
+  # TODO: new round
 
   # TODO : new and bet are the same ? (blind bets -> start game ??)
   # semantics : open position... bet in the betting box
@@ -77,21 +75,16 @@ defmodule Blackjack do
         game ->
           IO.inspect("#{p} turn...")
 
-          if is_atom(table.positions[p].value) do
-            # blackjack or bust: skip this... until resolve (???)
-            # TODO : bust should exit the player from the game immediately (will not win in any case)
-            # => can only become "spectator" (useful ??)
+          %{
             game
-          else
-            %{game | table: table |> Table.maybe_card_to(game.players[p])}
-            # ? TODO: recurse here or after whole loop ?
-          end
+            | table:
+                table
+                |> Table.play(
+                  p,
+                  &Blackjack.Player.hit_or_stand(game.players[p], &1)
+                )
+          }
       end
-
-    # TODO : loop until the end of player turns
-
-    # Resolve dealer after all players
-    %{played_game | table: played_game.table |> Table.play(:dealer)}
   end
 
   @doc ~s"""
@@ -99,9 +92,13 @@ defmodule Blackjack do
   """
 
   def resolve(%__MODULE__{players: players, table: table} = bj) do
-    for p <- Map.keys(players), reduce: bj do
+    # Resolve dealer (after all players have played)
+    resolved_game = %{bj | table: table |> Table.play(:dealer)}
+
+    # Manipulate player bets and positions...
+    for p <- Map.keys(players), reduce: resolved_game do
       acc ->
-        {updated_table, %PlayerExit{id: ^p, gain: gain}} = table |> Table.resolve(p)
+        {updated_table, %PlayerExit{id: ^p, gain: gain}} = resolved_game.table |> Table.resolve(p)
 
         %{
           acc

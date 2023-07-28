@@ -113,6 +113,8 @@ defmodule Blackjack.Deck do
     |> Macro.escape()
   end
 
+  # TODO : better than macro : sigil to interpret cards from 2char strings (with comma for append) + generator...
+
   @spec deal(Enumerable.t(), Collectable.t()) :: {Collectable.t(), Enumerable.t()}
   @spec deal(Enumerable.t(), Collectable.t(), integer) :: {Collectable.t(), Enumerable.t()}
   def deal(a_deck, hand, amount \\ 1) when is_list(a_deck) do
