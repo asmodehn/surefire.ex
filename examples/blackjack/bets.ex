@@ -9,6 +9,9 @@ defmodule Blackjack.Bets do
   # Note : we want to track each bet (opening positions) separately, in event sourcing style
   #  => teh current bet amount is an aggregate(?)/collectable(?) view of a set of betting events
 
+  # TODO : instead of one integer, a list of int
+  #        that are summable to give the current value (accounting-like -> store events, not state)
+
   def player_bet(%__MODULE__{} = b, player, bet) do
     %{b | bets: Keyword.update(b.bets, player, bet, fn v -> v + bet end)}
   end

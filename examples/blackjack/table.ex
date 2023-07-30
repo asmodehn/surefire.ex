@@ -1,23 +1,19 @@
 defmodule Blackjack.Table do
   alias Blackjack.{Hand, Bets}
 
-  import Blackjack.Deck, only: [deck: 0]
-
   # TODO : rounds, one game after another, using the same shoe.
-  @derive {Inspect, only: [:dealer, :bets, :positions]}
+  @derive {Inspect, only: [:dealer, :positions]}
   defstruct shoe: [],
-            # TODO : maybe move bets out of table (different concerns...) ? => into a round/game !
-            bets: %Bets{},
             dealer: %Hand{},
-            # TODO : number max of betting boxes !
+            # TODO : number max of betting boxes ?
             positions: %{}
 
   # Note: on player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
-  def new(_decks \\ 3) do
+  def new(shoe) when is_list(shoe) do
     %__MODULE__{
-      shoe: Enum.shuffle(deck()) ++ Enum.shuffle(deck()) ++ Enum.shuffle(deck())
+      shoe: shoe
     }
   end
 
@@ -41,25 +37,16 @@ defmodule Blackjack.Table do
     %{table | shoe: new_shoe, positions: positions |> Map.put(player_id, new_hand)}
   end
 
-  def bet(%__MODULE__{bets: bets} = table, player, amount)
-      when is_atom(player) and is_number(amount) do
-    %{
-      table
-      | bets: bets |> Bets.player_bet(player, amount)
-    }
-  end
+  @doc ~s"""
+    deals the cards to all players once, then the dealer, then all players again.
+  """
+  def deal(%__MODULE__{} = table, player_ids) when is_list(player_ids) do
+    (player_ids ++ [:dealer] ++ player_ids)
+    |> Enum.reduce(table, fn
+      p, t -> t |> deal_card_to(p)
+    end)
 
-  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
-      when dealer_hand.value >= 17
-      when is_atom(dealer_hand.value) do
-    table
-  end
-
-  def play(%__MODULE__{} = table, :dealer) do
-    table
-    |> deal_card_to(:dealer)
-    # and recurse until >= 17 or bust or blackjack
-    |> play(:dealer)
+    # TODO : check of bust or blackjack here already...
   end
 
   @doc """
@@ -90,20 +77,6 @@ defmodule Blackjack.Table do
     end
   end
 
-  @doc ~s"""
-    deals the cards to all players once, then the dealer, then all players again.
-  """
-  def deal(%__MODULE__{bets: bets} = table) do
-    player_ids = Bets.players(bets)
-
-    (player_ids ++ [:dealer] ++ player_ids)
-    |> Enum.reduce(table, fn
-      p, t -> t |> deal_card_to(p)
-    end)
-
-    # TODO : check of bust or blackjack here already...
-  end
-
   #  def play(%__MODULE__{positions: positions} = table, players) do
   #    # TODO: make sure somehow that all players who did bet have a hand.
   #    for p <- player_ids, reduce: {table, player_ids} do
@@ -132,33 +105,27 @@ defmodule Blackjack.Table do
   #    end
   #  end
 
+  def resolve(%__MODULE__{dealer: dealer_hand} = table, :dealer)
+      when dealer_hand.value >= 17
+      when is_atom(dealer_hand.value) do
+    table
+  end
+
+  def resolve(%__MODULE__{} = table, :dealer) do
+    table
+    |> deal_card_to(:dealer)
+    # and recurse until >= 17 or bust or blackjack
+    |> resolve(:dealer)
+  end
+
   def resolve(%__MODULE__{positions: pos} = table, player) when is_atom(player) do
     # TODO : handle "push" when both are equal...
     hand_comp = Hand.compare(pos[player], table.dealer)
     # TODO : review actual cases (with tests) here
     if hand_comp == :gt do
-      player_win(table, player)
+      {table, :win}
     else
-      player_lose(table, player)
+      {table, :lose}
     end
-  end
-
-  def player_win(%__MODULE__{bets: bets, positions: pos} = table, player)
-      when is_atom(player) do
-    {player_bet, bets} = bets |> Bets.player_end(player)
-
-    {
-      %{table | bets: bets, positions: pos |> Map.drop([player])},
-      %Blackjack.Event.PlayerExit{id: player, gain: player_bet * 2}
-    }
-  end
-
-  def player_lose(%__MODULE__{bets: bets, positions: pos} = table, player) when is_atom(player) do
-    {_player_bet, bets} = bets |> Bets.player_end(player)
-
-    {
-      %{table | bets: bets, positions: pos |> Map.drop([player])},
-      %Blackjack.Event.PlayerExit{id: player, gain: 0}
-    }
   end
 end
