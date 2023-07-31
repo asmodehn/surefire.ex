@@ -5,19 +5,14 @@ defmodule Blackjack.Deck do
 
   @type card :: {card_value, card_color}
 
-  alias Blackjack.Card
+  use Blackjack.Card
 
+  # TODO: with card sigil, this can now become a simple function
   defmacro deck() do
-    Enum.zip(
-      Card.values() |> List.duplicate(4) |> List.flatten(),
-      Card.colors()
-      |> Enum.map(fn
-        c -> List.duplicate(c, length(Card.values()))
-      end)
-      |> List.flatten()
-    )
-    |> Enum.map(fn {v, c} -> %Card{value: v, color: c} end)
-    #    |> IO.inspect()
+    (~C[2 3 4 5 6 7 8 9 10 J Q K A]h ++
+       ~C[2 3 4 5 6 7 8 9 10 J Q K A]s ++
+       ~C[2 3 4 5 6 7 8 9 10 J Q K A]c ++
+       ~C[2 3 4 5 6 7 8 9 10 J Q K A]d)
     |> Macro.escape()
   end
 

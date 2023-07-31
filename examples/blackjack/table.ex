@@ -23,16 +23,13 @@ defmodule Blackjack.Table do
 
   # TODO : prevent creating a player caller "dealer"... or work around the issue somehow ??
   @doc """
-  Deals a card to the dealer (from the shoe)
+  Deals a card from the shoe to a player, to the :dealer, or to a list of players
   """
   def deal(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer) do
     {new_hand, new_shoe} = Blackjack.Deck.deal(shoe, dealer_hand)
     %{table | shoe: new_shoe, dealer: new_hand}
   end
 
-  @doc """
-  Deals a card to the player (from the shoe)
-  """
   def deal(%__MODULE__{shoe: shoe, players: players} = table, player_id)
       when is_atom(player_id) do
     player_hand = players[player_id]
@@ -47,9 +44,6 @@ defmodule Blackjack.Table do
     %{table | shoe: new_shoe, players: players |> Map.put(player_id, new_hand)}
   end
 
-  @doc ~s"""
-    deals the cards to all players once, then the dealer, then all players again.
-  """
   def deal(%__MODULE__{} = table, player_ids) when is_list(player_ids) do
     (player_ids ++ [:dealer] ++ player_ids)
     |> Enum.reduce(table, fn
@@ -89,6 +83,7 @@ defmodule Blackjack.Table do
 
   @doc """
   Deals cards to the dealer until his hand has value >=17
+  Decides if a player :win or :lose
   """
   def resolve(%__MODULE__{dealer: dealer_hand} = table, :dealer)
       when dealer_hand.value >= 17
@@ -104,9 +99,6 @@ defmodule Blackjack.Table do
     |> resolve(:dealer)
   end
 
-  @doc """
-  Decides if a player :win or :lose
-  """
   def resolve(%__MODULE__{players: players} = table, player) when is_atom(player) do
     # TODO : handle "push" when both are equal...
     hand_comp = Hand.compare(players[player], table.dealer)
