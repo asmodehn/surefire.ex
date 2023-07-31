@@ -7,20 +7,17 @@ defmodule Blackjack do
       iex> me = Blackjack.Player.new_interactive()
       iex> bj = Blackjack.new()
       iex> bj = bj |> Blackjack.bet(me, 21)
-      iex> bj = bj |> Blackjack.deal()
       iex> bj = bj |> Blackjack.play()
-      iex> bj = bj |> Blackjack.resolve()
+      iex> bj |> Blackjack.resolve()
 
   """
 
-  alias Blackjack.Table
+  alias Blackjack.Game
   alias Blackjack.Event.{PlayerExit}
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
-            table: %Table{}
-
-  # TODO : rounds: []
+            games: []
 
   # TODO : we should add the total house bank amount here...
 
@@ -28,90 +25,69 @@ defmodule Blackjack do
     Register players for a new game.
   """
   def new() do
+    %__MODULE__{} |> new_game()
+  end
+
+  def new_game(%__MODULE__{games: games}) do
     %__MODULE__{
-      table: Table.new()
+      games: [Game.new() | games]
     }
   end
 
-  # TODO: new round
-
   # TODO : new and bet are the same ? (blind bets -> start game ??)
   # semantics : open position... bet in the betting box
-  def bet(%__MODULE__{table: table} = game, %Blackjack.Player{} = player, amount)
+  def bet(
+        %__MODULE__{players: players, games: [game | old_games]} = bj,
+        %Blackjack.Player{} = player,
+        amount
+      )
       when is_number(amount) do
     player_id = Surefire.Player.id(player)
 
     players =
-      if player_id not in Map.keys(game.players) do
-        game.players |> Map.merge(Map.new([{player_id, player}]))
+      if player_id not in Map.keys(players) do
+        players |> Map.merge(Map.new([{player_id, player}]))
       else
-        game.players
+        players
       end
 
     %{
-      game
+      bj
       | players: Map.update!(players, player_id, fn p -> p |> Surefire.Player.bet(amount) end),
-        table: table |> Table.bet(player_id, amount)
+        games: [game |> Game.bet(player_id, amount) | old_games]
     }
   end
 
-  @doc ~s"""
-    Only take in the game players who have already bet something...
-  other player stay in game, but don't receive cards and cannot play.
-  """
-  def deal(%__MODULE__{} = game) do
-    table = Table.deal(game.table)
+  def play(%__MODULE__{players: players, games: [game | old_games]} = bj) do
+    player_call = fn p, hv -> Blackjack.Player.hit_or_stand(players[p], hv) end
 
-    %{game | table: table}
-  end
-
-  @doc ~s"""
-    The play phase, where each player makes decisions, and cards are dealt
-  """
-  def play(%__MODULE__{players: players, table: table} = game) do
-    # TODO: make sure somehow that all players who did bet have a hand.
     played_game =
-      for p <- Map.keys(players), reduce: game do
-        game ->
-          IO.inspect("#{p} turn...")
+      game
+      |> Game.deal()
+      |> Game.play(player_call)
 
-          %{
-            game
-            | table:
-                table
-                |> Table.play(
-                  p,
-                  &Blackjack.Player.hit_or_stand(game.players[p], &1)
-                )
-          }
-      end
+    %{bj | games: [played_game | old_games]}
   end
 
   @doc ~s"""
-    To the end, where the dealer get cards until >17
+    Resolves the current game to the end.
+    Modifies player's credits depending on game result.
   """
 
-  def resolve(%__MODULE__{players: players, table: table} = bj) do
-    # Resolve dealer (after all players have played)
-    resolved_game = %{bj | table: table |> Table.play(:dealer)}
+  def resolve(%__MODULE__{players: players, games: [game | old_games]} = bj) do
+    {resolved_game, exits} = Game.resolve(game)
 
-    # Manipulate player bets and positions...
-    for p <- Map.keys(players), reduce: resolved_game do
+    for %Blackjack.Event.PlayerExit{id: pp_id, gain: gain} <- exits,
+        reduce: %{bj | games: [resolved_game | old_games]} do
       acc ->
-        {updated_table, %PlayerExit{id: ^p, gain: gain}} = resolved_game.table |> Table.resolve(p)
-
         %{
           acc
-          | table: updated_table,
-            players:
+          | players:
               acc.players
-              |> Map.update!(p, fn
+              |> Map.update!(pp_id, fn
                 pp ->
-                  %Blackjack.Player.GainEvent{id: pp_id, gain: gain} =
-                    Blackjack.Player.event(pp, gain)
-
                   # payers[pp_id] == pp
-                  Surefire.Player.get(players[pp_id], gain)
+                  Surefire.Player.get(pp, gain)
               end)
         }
     end

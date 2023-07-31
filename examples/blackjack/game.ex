@@ -154,7 +154,7 @@ defmodule Blackjack.Game do
 
     {
       %{game | bets: bets},
-      %Blackjack.Event.PlayerExit{id: player, gain: player_bet * 2}
+      [%Blackjack.Event.PlayerExit{id: player, gain: player_bet * 2}]
     }
   end
 
@@ -163,7 +163,7 @@ defmodule Blackjack.Game do
 
     {
       %{table | bets: bets},
-      %Blackjack.Event.PlayerExit{id: player, gain: 0}
+      [%Blackjack.Event.PlayerExit{id: player, gain: 0}]
     }
   end
 end
