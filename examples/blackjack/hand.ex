@@ -1,5 +1,5 @@
 defmodule Blackjack.Hand do
-  alias Blackjack.Deck.Card
+  alias Blackjack.Card
 
   defstruct cards: [], value: 0
 

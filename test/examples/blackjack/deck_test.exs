@@ -1,7 +1,7 @@
 defmodule Blackjack.DeckTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.Deck.Card
+  alias Blackjack.Card
   import Blackjack.Deck, only: [deck: 0]
 
   test "deck/0 macro generates a complete deck properly ordered" do

@@ -2,7 +2,7 @@ defmodule Blackjack.HandTest do
   use ExUnit.Case, async: true
 
   alias Blackjack.Hand
-  alias Blackjack.Deck.Card
+  alias Blackjack.Card
 
   describe "new/0" do
     test "creates a hand with an empty list of card, and 0 value" do
