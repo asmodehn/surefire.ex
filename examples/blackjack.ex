@@ -74,12 +74,12 @@ defmodule Blackjack do
     Modifies player's credits depending on game result.
   """
 
-  def resolve(%__MODULE__{players: players, games: [game | old_games]} = bj) do
+  def resolve(%__MODULE__{games: [game | old_games]} = bj) do
     {resolved_game, exits} = Game.resolve(game)
 
     for %Blackjack.Event.PlayerExit{id: pp_id, gain: gain} <- exits,
         reduce: %{bj | games: [resolved_game | old_games]} do
-      acc ->
+      %__MODULE__{} = acc ->
         %{
           acc
           | players:

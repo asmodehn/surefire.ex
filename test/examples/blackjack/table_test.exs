@@ -9,11 +9,11 @@ defmodule Blackjack.TableTest do
     assert Table.new(deck()).shoe == deck()
   end
 
-  describe "deal_card_to/2" do
+  describe "deal/2" do
     test "can deal a card to the dealer" do
       table =
         Table.new(deck())
-        |> Table.deal_card_to(:dealer)
+        |> Table.deal(:dealer)
 
       %Blackjack.Hand{cards: clist} = table.dealer
       assert length(clist) == 1
@@ -22,10 +22,10 @@ defmodule Blackjack.TableTest do
     test "can deal a card to a player" do
       table =
         Table.new(deck())
-        |> Table.deal_card_to(:bob)
+        |> Table.deal(:bob)
 
-      assert :bob in Map.keys(table.positions)
-      %Blackjack.Hand{cards: clist} = table.positions[:bob]
+      assert :bob in Map.keys(table.players)
+      %Blackjack.Hand{cards: clist} = table.players[:bob]
       assert length(clist) == 1
     end
 
@@ -33,19 +33,19 @@ defmodule Blackjack.TableTest do
       table =
         [:alice, :bob, :dealer]
         |> Enum.reduce(Table.new(deck()), fn
-          p, t -> t |> Table.deal_card_to(p)
+          p, t -> t |> Table.deal(p)
         end)
 
-      assert :alice in Map.keys(table.positions)
-      assert :bob in Map.keys(table.positions)
+      assert :alice in Map.keys(table.players)
+      assert :bob in Map.keys(table.players)
 
       %Blackjack.Hand{cards: clist} = table.dealer
       assert length(clist) == 1
 
-      %Blackjack.Hand{cards: clist} = table.positions[:alice]
+      %Blackjack.Hand{cards: clist} = table.players[:alice]
       assert length(clist) == 1
 
-      %Blackjack.Hand{cards: clist} = table.positions[:bob]
+      %Blackjack.Hand{cards: clist} = table.players[:bob]
       assert length(clist) == 1
     end
   end
@@ -56,9 +56,9 @@ defmodule Blackjack.TableTest do
         Table.new(deck())
         |> Table.deal([:alice, :bob, :charlie])
 
-      assert Hand.size(table.positions[:alice]) == 2
-      assert Hand.size(table.positions[:bob]) == 2
-      assert Hand.size(table.positions[:charlie]) == 2
+      assert Hand.size(table.players[:alice]) == 2
+      assert Hand.size(table.players[:bob]) == 2
+      assert Hand.size(table.players[:charlie]) == 2
       assert Hand.size(table.dealer) == 1
     end
   end

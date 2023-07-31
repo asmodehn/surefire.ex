@@ -6,9 +6,7 @@ defmodule BlackjackTest do
 
     Blackjack.new()
     |> IO.inspect()
-    |> Blackjack.bet(player, 12)
-    |> IO.inspect()
-    |> Blackjack.deal()
+    |> Blackjack.bet(player, 21)
     |> IO.inspect()
     |> Blackjack.play()
     |> IO.inspect()

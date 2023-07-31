@@ -22,11 +22,15 @@ defmodule Blackjack.Game do
 
   @derive {Inspect, only: [:bets, :table]}
   defstruct bets: %Bets{},
+            # TODO : number max of betting boxes ?
             table: %Table{},
             # This is a container for events, that have already been consumed
             # others are still considered "in flight"
             # TODO trace events and/or previous tables ???
             trace: []
+
+  # Note: on player can play multiple  positions/boxes.
+  # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
   def new() do
     %{
