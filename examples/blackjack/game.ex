@@ -125,31 +125,21 @@ defmodule Blackjack.Game do
   @doc ~s"""
     To the end, where the dealer get cards until >17
   """
+  def resolve(%__MODULE__{bets: bets, table: table} = g) do
+    {updated_table, win_or_lose} = table |> Table.resolve()
 
-  def resolve(%__MODULE__{table: table} = bj, :dealer) do
-    # Resolve dealer (after all players have played)
-    {%{bj | table: table |> Table.resolve(:dealer)}, []}
-  end
-
-  def resolve(%__MODULE__{table: table} = bj, player_id) when is_atom(player_id) do
-    {updated_table, win_or_lose} = table |> Table.resolve(player_id)
-
-    case win_or_lose do
-      :win -> {updated_game, evt} = player_win(%{bj | table: updated_table}, player_id)
-      :lose -> {updated_game, evt} = player_lose(%{bj | table: updated_table}, player_id)
-    end
-  end
-
-  def resolve(%__MODULE__{table: table} = bj, player_ids) when is_list(player_ids) do
-    for p <- player_ids, reduce: {bj, []} do
+    for {p, wl} <- win_or_lose, reduce: {g, []} do
       {acc, evt} ->
-        {updated_acc, generated_evts} = resolve(acc, p)
-        {updated_acc, evt ++ generated_evts}
-    end
-  end
+        case wl do
+          :win ->
+            {updated_acc, generated_evts} = player_win(acc, p)
+            {updated_acc, evt ++ generated_evts}
 
-  def resolve(%__MODULE__{bets: bets} = g) do
-    resolve(g, [:dealer] ++ Bets.players(bets))
+          :lose ->
+            {updated_acc, generated_evts} = player_lose(acc, p)
+            {updated_acc, evt ++ generated_evts}
+        end
+    end
   end
 
   def player_win(%__MODULE__{bets: bets} = game, player)

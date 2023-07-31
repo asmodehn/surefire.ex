@@ -1,4 +1,7 @@
 defmodule Blackjack.Table do
+  @moduledoc """
+  `Blackjack.Table` implements blackjack rules for a table.
+  """
   alias Blackjack.{Hand, Bets}
 
   @derive {Inspect, only: [:dealer, :players]}
@@ -9,18 +12,27 @@ defmodule Blackjack.Table do
   # Note: on player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
-  def new(shoe) when is_list(shoe) do
+  @doc """
+  Builds a new table with the given parameter as shoe
+  """
+  def new(shoe \\ []) when is_list(shoe) do
     %__MODULE__{
       shoe: shoe
     }
   end
 
-  # TODO : prevent creating a player caller "dealer"...) or work around the issue somehow ??
+  # TODO : prevent creating a player caller "dealer"... or work around the issue somehow ??
+  @doc """
+  Deals a card to the dealer (from the shoe)
+  """
   def deal(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer) do
     {new_hand, new_shoe} = Blackjack.Deck.deal(shoe, dealer_hand)
     %{table | shoe: new_shoe, dealer: new_hand}
   end
 
+  @doc """
+  Deals a card to the player (from the shoe)
+  """
   def deal(%__MODULE__{shoe: shoe, players: players} = table, player_id)
       when is_atom(player_id) do
     player_hand = players[player_id]
@@ -75,6 +87,9 @@ defmodule Blackjack.Table do
     end
   end
 
+  @doc """
+  Deals cards to the dealer until his hand has value >=17
+  """
   def resolve(%__MODULE__{dealer: dealer_hand} = table, :dealer)
       when dealer_hand.value >= 17
       when is_atom(dealer_hand.value) do
@@ -83,11 +98,15 @@ defmodule Blackjack.Table do
 
   def resolve(%__MODULE__{} = table, :dealer) do
     table
+    # deal one card more to the dealer
     |> deal(:dealer)
     # and recurse until >= 17 or bust or blackjack
     |> resolve(:dealer)
   end
 
+  @doc """
+  Decides if a player :win or :lose
+  """
   def resolve(%__MODULE__{players: players} = table, player) when is_atom(player) do
     # TODO : handle "push" when both are equal...
     hand_comp = Hand.compare(players[player], table.dealer)
@@ -96,6 +115,14 @@ defmodule Blackjack.Table do
       {table, :win}
     else
       {table, :lose}
+    end
+  end
+
+  def resolve(%__MODULE__{players: players} = table) do
+    for p <- Map.keys(players), reduce: {table |> resolve(:dealer), []} do
+      {acc_table, win_or_lose} ->
+        {updated_table, win_lose} = resolve(acc_table, p)
+        {updated_table, [{p, win_lose} | win_or_lose]}
     end
   end
 end
