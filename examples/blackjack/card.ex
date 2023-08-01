@@ -1,12 +1,12 @@
-
 defmodule Blackjack.Card.Sigil do
-
   defmacro __using__(_opts \\ []) do
     quote do
       import Blackjack.Card.Sigil, only: [sigil_C: 2]
       import Kernel, except: [sigil_C: 2]
     end
   end
+
+  defp from_str(rankstr, suit) when rankstr == "", do: nil
 
   defp from_str(rankstr, suit) do
     rank =
@@ -38,9 +38,13 @@ defmodule Blackjack.Card.Sigil do
       iex> ~C[1 6 10 J K]s
       iex> ~C[A♥ 10♣ Q♠ 7♦]
   """
+  defmacro sigil_C({:<<>>, _meta, []}, []), do: []
+
   defmacro sigil_C({:<<>>, _meta, [str]}, []) do
+    separator = :binary.compile_pattern([" ", ","])
+
     str
-    |> String.split()
+    |> String.split(separator)
     |> Enum.map(fn
       s ->
         case String.last(s) do
@@ -48,31 +52,48 @@ defmodule Blackjack.Card.Sigil do
           "♠" -> from_str(String.slice(s, 0..-2//1), :spades)
           "♣" -> from_str(String.slice(s, 0..-2//1), :clubs)
           "♦" -> from_str(String.slice(s, 0..-2//1), :diamonds)
+          unknown -> nil
         end
     end)
+    # reject everything that didn't match previously
+    |> Enum.reject(&is_nil/1)
     |> Macro.escape()
   end
 
   defmacro sigil_C({:<<>>, _meta, [str]}, [?h]) do
-    Macro.escape(str |> String.split() |> Enum.map(&from_str(&1, :hearts)))
+    separator = :binary.compile_pattern([" ", ","])
+
+    Macro.escape(str |> String.split(separator) |> Enum.map(&from_str(&1, :hearts)))
+    # reject everything that didn't match previously
+    |> Enum.reject(&is_nil/1)
   end
 
   defmacro sigil_C({:<<>>, _meta, [str]}, [?s]) do
-    Macro.escape(str |> String.split() |> Enum.map(&from_str(&1, :spades)))
+    separator = :binary.compile_pattern([" ", ","])
+
+    Macro.escape(str |> String.split(separator) |> Enum.map(&from_str(&1, :spades)))
+    # reject everything that didn't match previously
+    |> Enum.reject(&is_nil/1)
   end
 
   defmacro sigil_C({:<<>>, _meta, [str]}, [?c]) do
-    Macro.escape(str |> String.split() |> Enum.map(&from_str(&1, :clubs)))
+    separator = :binary.compile_pattern([" ", ","])
+
+    Macro.escape(str |> String.split(separator) |> Enum.map(&from_str(&1, :clubs)))
+    # reject everything that didn't match previously
+    |> Enum.reject(&is_nil/1)
   end
 
   defmacro sigil_C({:<<>>, _meta, [str]}, [?d]) do
-    Macro.escape(str |> String.split() |> Enum.map(&from_str(&1, :diamonds)))
-  end
-        end
+    separator = :binary.compile_pattern([" ", ","])
 
+    Macro.escape(str |> String.split(separator) |> Enum.map(&from_str(&1, :diamonds)))
+    # reject everything that didn't match previously
+    |> Enum.reject(&is_nil/1)
+  end
+end
 
 defmodule Blackjack.Card do
-
   # we forbid implicit creation by setting to nil
   defstruct value: nil, color: nil
 
@@ -81,9 +102,7 @@ defmodule Blackjack.Card do
           color: atom()
         }
 
-
   use Blackjack.Card.Sigil
-
 
   def hearts(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]h
   def spades(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]s
@@ -102,6 +121,7 @@ defmodule Blackjack.Card do
     end
 
     # TODO we can make prettier render when pretty inspect option is on ?
+    # SAME as SIGIL ??
   end
 
   defimpl String.Chars do

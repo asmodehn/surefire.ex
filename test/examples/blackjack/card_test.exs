@@ -1,12 +1,48 @@
-defmodule Blackjack.DeckTest do
+defmodule Blackjack.Card.SigilTest do
+  use ExUnit.Case, async: true
+
+  alias Blackjack.Card
+  use Blackjack.Card.Sigil
+
+  test "~C[] is an empty list" do
+    assert ~C[] == []
+  end
+
+  test "~C[5♠] is the list with the five of spades" do
+    assert ~C[5♠] == [%Card{value: :five, color: :spades}]
+  end
+
+  test "~C[5]s is the list with the five of spades" do
+    assert ~C[5]s == [%Card{value: :five, color: :spades}]
+    assert ~C[5]s == ~C[5♠]
+  end
+
+  test "~C[5♠, A♣] == ~C[5♠ A♣] == ~C[5♠,A♣]" do
+    assert ~C[5♠,A♣] == ~C[5♠ A♣]
+    assert ~C[5♠, A♣] == ~C[5♠ A♣]
+    assert ~C[5♠, A♣] == ~C[5♠,A♣]
+  end
+
+  test "C[5]s ++ ~C[A]c ==  ~C[5♠, A♣]" do
+    assert ~C[5]s ++ ~C[A]c == ~C[5♠, A♣]
+  end
+
+  test "~C[5, A]s == ~C[5 A]s == ~C[5,A]s" do
+    assert ~C[5,A]s == ~C[5 A]s
+    assert ~C[5, A]s == ~C[5 A]s
+    assert ~C[5, A]s == ~C[5,A]s
+  end
+end
+
+defmodule Blackjack.CardTest do
   use ExUnit.Case, async: true
 
   alias Blackjack.Card
 
   test "hearts/0 produces the suit of hearts" do
-        colorh = :hearts
+    colorh = :hearts
 
-        hearts = [
+    hearts = [
       %Card{value: :two, color: colorh},
       %Card{value: :three, color: colorh},
       %Card{value: :four, color: colorh},
@@ -21,13 +57,12 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colorh},
       %Card{value: :ace, color: colorh}
     ]
+
     assert Card.hearts() == hearts
   end
 
   test "spades/0 produces the suit of spades" do
-
     colors = :spades
-
 
     spades = [
       %Card{value: :two, color: colors},
@@ -44,8 +79,8 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colors},
       %Card{value: :ace, color: colors}
     ]
-    assert Card.spades() == spades
 
+    assert Card.spades() == spades
   end
 
   test "clubs/0 produces the suit of clubs" do
@@ -66,13 +101,12 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colorc},
       %Card{value: :ace, color: colorc}
     ]
+
     assert Card.clubs() == clubs
   end
+
   test "diamonds/0 produces the suit of diamonds" do
-        colord = :diamonds
-
-
-
+    colord = :diamonds
 
     diamonds = [
       %Card{value: :two, color: colord},
@@ -89,11 +123,11 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colord},
       %Card{value: :ace, color: colord}
     ]
+
     assert Card.diamonds() == diamonds
   end
 
   test "deck/0 produces a complete deck properly ordered" do
-
     assert Card.deck() == Card.hearts() ++ Card.spades() ++ Card.clubs() ++ Card.diamonds()
   end
 end

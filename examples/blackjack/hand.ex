@@ -31,6 +31,8 @@ defmodule Blackjack.Hand do
     end
   end
 
+  # TODO : clever way to have value/N handle one or many cards (like for add_card)?
+
   @spec value([Card.t()]) :: hand_value
   def value(cards) when is_list(cards) do
     hand_value = cards |> Enum.map(&card_value/1) |> Enum.sum()
@@ -61,11 +63,9 @@ defmodule Blackjack.Hand do
   def add_card(%__MODULE__{} = hand, []), do: hand
 
   def add_card(hand, cards) when is_list(cards) do
-    # direct way
+    # direct way (semantics same as recursing on list)
     new_cards = hand.cards ++ cards
     %{hand | cards: new_cards, value: value(new_cards)}
-    # recursive way
-    #    hand |> add_card(c) |> add_card(other_cards)
   end
 
   def size(%__MODULE__{} = hand) do
@@ -110,26 +110,6 @@ defmodule Blackjack.Hand do
       cards = for c <- hand.cards, do: "#{c}"
 
       Enum.join(cards, ",") <> ": #{hand.value}"
-    end
-  end
-
-  # TODO : get rid of this, unneeded ?
-  defimpl Collectable do
-    def into(%Blackjack.Hand{} = hand) do
-      collector_fun = fn
-        hand_acc, {:cont, card} ->
-          Blackjack.Hand.add_card(hand_acc, card)
-
-        hand_acc, :done ->
-          hand_acc
-
-        _hand_acc, :halt ->
-          :ok
-      end
-
-      initial_acc = hand
-
-      {initial_acc, collector_fun}
     end
   end
 end
