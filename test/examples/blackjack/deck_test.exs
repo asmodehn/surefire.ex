@@ -1,8 +1,7 @@
 defmodule Blackjack.DeckTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.Card
-  import Blackjack.Deck, only: [deck: 0]
+  alias Blackjack.{Deck, Card}
 
   test "deck/0 macro generates a complete deck properly ordered" do
     colorh = :hearts
@@ -74,6 +73,6 @@ defmodule Blackjack.DeckTest do
       %Card{value: :ace, color: colord}
     ]
 
-    assert deck() == hearts ++ spades ++ clubs ++ diamonds
+    assert Deck.new() == hearts ++ spades ++ clubs ++ diamonds
   end
 end

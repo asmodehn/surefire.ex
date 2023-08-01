@@ -7,16 +7,12 @@ defmodule Blackjack.Deck do
 
   use Blackjack.Card
 
-  # TODO: with card sigil, this can now become a simple function
-  defmacro deck() do
-    (~C[2 3 4 5 6 7 8 9 10 J Q K A]h ++
-       ~C[2 3 4 5 6 7 8 9 10 J Q K A]s ++
-       ~C[2 3 4 5 6 7 8 9 10 J Q K A]c ++
-       ~C[2 3 4 5 6 7 8 9 10 J Q K A]d)
-    |> Macro.escape()
+  def new() do
+    ~C[2 3 4 5 6 7 8 9 10 J Q K A]h ++
+      ~C[2 3 4 5 6 7 8 9 10 J Q K A]s ++
+      ~C[2 3 4 5 6 7 8 9 10 J Q K A]c ++
+      ~C[2 3 4 5 6 7 8 9 10 J Q K A]d
   end
-
-  # TODO : better than macro : sigil to interpret cards from 2char strings (with comma for append) + generator...
 
   @spec deal(Enumerable.t(), Collectable.t()) :: {Collectable.t(), Enumerable.t()}
   @spec deal(Enumerable.t(), Collectable.t(), integer) :: {Collectable.t(), Enumerable.t()}
