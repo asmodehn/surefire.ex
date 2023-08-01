@@ -1,15 +1,12 @@
 defmodule Blackjack.DeckTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.{Deck, Card}
+  alias Blackjack.Card
 
-  test "deck/0 macro generates a complete deck properly ordered" do
-    colorh = :hearts
-    colors = :spades
-    colorc = :clubs
-    colord = :diamonds
+  test "hearts/0 produces the suit of hearts" do
+        colorh = :hearts
 
-    hearts = [
+        hearts = [
       %Card{value: :two, color: colorh},
       %Card{value: :three, color: colorh},
       %Card{value: :four, color: colorh},
@@ -24,6 +21,13 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colorh},
       %Card{value: :ace, color: colorh}
     ]
+    assert Card.hearts() == hearts
+  end
+
+  test "spades/0 produces the suit of spades" do
+
+    colors = :spades
+
 
     spades = [
       %Card{value: :two, color: colors},
@@ -40,6 +44,12 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colors},
       %Card{value: :ace, color: colors}
     ]
+    assert Card.spades() == spades
+
+  end
+
+  test "clubs/0 produces the suit of clubs" do
+    colorc = :clubs
 
     clubs = [
       %Card{value: :two, color: colorc},
@@ -56,6 +66,13 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colorc},
       %Card{value: :ace, color: colorc}
     ]
+    assert Card.clubs() == clubs
+  end
+  test "diamonds/0 produces the suit of diamonds" do
+        colord = :diamonds
+
+
+
 
     diamonds = [
       %Card{value: :two, color: colord},
@@ -72,7 +89,11 @@ defmodule Blackjack.DeckTest do
       %Card{value: :king, color: colord},
       %Card{value: :ace, color: colord}
     ]
+    assert Card.diamonds() == diamonds
+  end
 
-    assert Deck.new() == hearts ++ spades ++ clubs ++ diamonds
+  test "deck/0 produces a complete deck properly ordered" do
+
+    assert Card.deck() == Card.hearts() ++ Card.spades() ++ Card.clubs() ++ Card.diamonds()
   end
 end

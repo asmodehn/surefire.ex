@@ -1,17 +1,17 @@
 defmodule Blackjack.TableTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.{Deck, Table, Hand}
+  alias Blackjack.{Card, Table, Hand}
   alias Blackjack.Player.PlayCommand
 
   test "new/1 creates a new Table with the shoe passed as parameter" do
-    assert Table.new(Deck.new()).shoe == Deck.new()
+    assert Table.new(Card.deck()).shoe == Card.deck()
   end
 
   describe "deal/2" do
     test "can deal a card to the dealer" do
       table =
-        Table.new(Deck.new())
+        Table.new(Card.deck())
         |> Table.deal(:dealer)
 
       %Blackjack.Hand{cards: clist} = table.dealer
@@ -20,7 +20,7 @@ defmodule Blackjack.TableTest do
 
     test "can deal a card to a player" do
       table =
-        Table.new(Deck.new())
+        Table.new(Card.deck())
         |> Table.deal(:bob)
 
       assert :bob in Map.keys(table.players)
@@ -31,7 +31,7 @@ defmodule Blackjack.TableTest do
     test "can deal a card to many players, including dealer" do
       table =
         [:alice, :bob, :dealer]
-        |> Enum.reduce(Table.new(Deck.new()), fn
+        |> Enum.reduce(Table.new(Card.deck()), fn
           p, t -> t |> Table.deal(p)
         end)
 
@@ -52,7 +52,7 @@ defmodule Blackjack.TableTest do
   describe "deal/1 " do
     test "deals two cards to each player and one card to the dealer" do
       table =
-        Table.new(Deck.new())
+        Table.new(Card.deck())
         |> Table.deal([:alice, :bob, :charlie])
 
       assert Hand.size(table.players[:alice]) == 2
@@ -65,7 +65,7 @@ defmodule Blackjack.TableTest do
   describe "play/3" do
     test "allows a player to decide to stand or hit" do
       table =
-        Table.new(Deck.new())
+        Table.new(Card.deck())
         |> Table.deal([:alice, :bob, :charlie])
 
       # TODO : detemrinist test with known cards in shoe.
@@ -92,7 +92,7 @@ defmodule Blackjack.TableTest do
   describe "resolve/1" do
     test "deals last cards to the dealer, and decide :win or :lose for each player" do
       table =
-        Table.new(Deck.new())
+        Table.new(Card.deck())
         |> Table.deal([:alice, :bob, :charlie])
 
       final_table =

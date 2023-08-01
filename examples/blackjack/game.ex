@@ -15,7 +15,7 @@ defmodule Blackjack.Game do
   #    defstruct id: nil, end: nil # bust / blackjack / value.
   #  end
 
-  alias Blackjack.{Deck, Bets, Table}
+  alias Blackjack.{Bets, Table, Card}
   alias Blackjack.Event.{PlayerExit}
 
   @derive {Inspect, only: [:bets, :table]}
@@ -36,7 +36,7 @@ defmodule Blackjack.Game do
       | table:
           Table.new(
             # default shoe of 3 decks...
-            Enum.shuffle(Deck.new() ++ Deck.new() ++ Deck.new())
+            Enum.shuffle(Card.deck() ++ Card.deck() ++ Card.deck())
           )
     }
   end

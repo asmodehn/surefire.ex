@@ -16,7 +16,7 @@ defmodule Blackjack.Event do
     defstruct id: nil, gain: 0
   end
 
-  alias Blackjack.{Player, Deck}
+  alias Blackjack.Player
 
   def player_enter(%Player{} = player, bet) do
     %PlayerEnter{id: Surefire.Player.id(player), bet: bet}

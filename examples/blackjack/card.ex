@@ -1,64 +1,12 @@
-defmodule Blackjack.Card do
-  # TODO: attributes unneeded since only in this module...
-  #  @two :two
-  #  @three :three
-  #  @four :four
-  #  @five :five
-  #  @six :six
-  #  @seven :seven
-  #  @eight :eight
-  #  @nine :nine
-  #  @ten :ten
-  #  @jack :jack
-  #  @queen :queen
-  #  @king :king
-  #  # also one !
-  #  @ace :ace
 
-  # TODO: to prevent using the atoms around without checks, maybe we should make these functions, somehow ??
-
-  #  @hearts :hearts
-  #  @spades :spades
-  #  @clubs :clubs
-  #  @diamonds :diamonds
-
-  # we forbid implicit creation by setting to nil
-  defstruct value: nil, color: nil
-
-  @type t :: %__MODULE__{
-          value: non_neg_integer(),
-          color: atom()
-        }
-
-  #
-  #  def colors, do: [@hearts, @spades, @clubs, @diamonds]
-  #
-  #  def values,
-  #    do: [
-  #      @two,
-  #      @three,
-  #      @four,
-  #      @five,
-  #      @six,
-  #      @seven,
-  #      @eight,
-  #      @nine,
-  #      @ten,
-  #      @jack,
-  #      @queen,
-  #      @king,
-  #      @ace
-  #    ]
+defmodule Blackjack.Card.Sigil do
 
   defmacro __using__(_opts \\ []) do
     quote do
-      import Blackjack.Card, only: [sigil_C: 2]
+      import Blackjack.Card.Sigil, only: [sigil_C: 2]
       import Kernel, except: [sigil_C: 2]
     end
   end
-
-  # TODO : lowercase  ANd upper case sigil, to alow/prevent interpolation
-  # cf. http://elixir-br.github.io/getting-started/sigils.html#interpolation-and-escaping-in-sigils
 
   defp from_str(rankstr, suit) do
     rank =
@@ -79,7 +27,8 @@ defmodule Blackjack.Card do
         "A" -> :ace
       end
 
-    %__MODULE__{value: rank, color: suit}
+    # ad-hoc struct (before module has been defined)
+    %{__struct__: Blackjack.Card, value: rank, color: suit}
   end
 
   @doc """
@@ -118,6 +67,31 @@ defmodule Blackjack.Card do
 
   defmacro sigil_C({:<<>>, _meta, [str]}, [?d]) do
     Macro.escape(str |> String.split() |> Enum.map(&from_str(&1, :diamonds)))
+  end
+        end
+
+
+defmodule Blackjack.Card do
+
+  # we forbid implicit creation by setting to nil
+  defstruct value: nil, color: nil
+
+  @type t :: %__MODULE__{
+          value: non_neg_integer(),
+          color: atom()
+        }
+
+
+  use Blackjack.Card.Sigil
+
+
+  def hearts(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]h
+  def spades(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]s
+  def clubs(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]c
+  def diamonds(), do: ~C[2 3 4 5 6 7 8 9 10 J Q K A]d
+
+  def deck() do
+    hearts ++ spades ++ clubs ++ diamonds
   end
 
   defimpl Inspect do
