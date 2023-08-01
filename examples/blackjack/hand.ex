@@ -6,6 +6,8 @@ defmodule Blackjack.Hand do
   @type hand_value :: non_neg_integer | :blackjack | :bust
   @type t :: %__MODULE__{
           cards: [Card.t()],
+          # This is just an optimization to avoid multiple recompute...
+          # TODO : as macro to simplify code ??? maybe via add_card ??
           value: hand_value
         }
 
@@ -44,13 +46,26 @@ defmodule Blackjack.Hand do
     end
   end
 
+  # TODO : get rid of this ? useless ?
   def new() do
-    %__MODULE__{cards: [], value: 0}
+    %__MODULE__{}
   end
+
+  def add_card(nil, card), do: add_card(%__MODULE__{}, card)
 
   def add_card(%__MODULE__{} = hand, %Card{} = c) do
     cards = hand.cards ++ [c]
     %{hand | cards: cards, value: value(cards)}
+  end
+
+  def add_card(%__MODULE__{} = hand, []), do: hand
+
+  def add_card(hand, cards) when is_list(cards) do
+    # direct way
+    new_cards = hand.cards ++ cards
+    %{hand | cards: new_cards, value: value(new_cards)}
+    # recursive way
+    #    hand |> add_card(c) |> add_card(other_cards)
   end
 
   def size(%__MODULE__{} = hand) do
@@ -98,6 +113,7 @@ defmodule Blackjack.Hand do
     end
   end
 
+  # TODO : get rid of this, unneeded ?
   defimpl Collectable do
     def into(%Blackjack.Hand{} = hand) do
       collector_fun = fn

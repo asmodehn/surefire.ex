@@ -26,22 +26,25 @@ defmodule Blackjack.Table do
   Deals a card from the shoe to a player, to the :dealer, or to a list of players
   """
   def deal(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer) do
-    {new_hand, new_shoe} = Blackjack.Deck.deal(shoe, dealer_hand)
-    %{table | shoe: new_shoe, dealer: new_hand}
+    %{
+      table
+      | shoe: shoe |> Enum.drop(1),
+        dealer: dealer_hand |> Hand.add_card(shoe |> Enum.take(1))
+    }
   end
 
   def deal(%__MODULE__{shoe: shoe, players: players} = table, player_id)
       when is_atom(player_id) do
-    player_hand = players[player_id]
-
-    {new_hand, new_shoe} =
-      case player_hand do
-        # TODO : maybe the other way ? hand receiving a card from a enum of cards???
-        nil -> Blackjack.Deck.deal(shoe, Blackjack.Hand.new())
-        hand -> Blackjack.Deck.deal(shoe, hand)
-      end
-
-    %{table | shoe: new_shoe, players: players |> Map.put(player_id, new_hand)}
+    %{
+      table
+      | shoe: shoe |> Enum.drop(1),
+        players:
+          players
+          |> Map.put(
+            player_id,
+            players[player_id] |> Hand.add_card(shoe |> Enum.take(1))
+          )
+    }
   end
 
   def deal(%__MODULE__{} = table, player_ids) when is_list(player_ids) do
