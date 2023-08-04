@@ -60,13 +60,37 @@ defmodule Blackjack.TableTest do
   end
 
   describe "play/3" do
-    test "doesnt do anyhting if the player has no cards" do
+    test "doesnt do anything if the player has no cards" do
       table = Table.new(Card.deck())
 
       # Currently test pass even if :bust or :blackjack
       same_table = Table.play(table, :alice, nil)
 
       assert same_table == table
+    end
+
+    test "doesnt change player hand if hit and shoe is empty, and mark table result as void" do
+      table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
+
+      updated_table = table |> Table.play(:bob, fn _ -> %PlayCommand{id: :bob, command: :hit} end)
+
+      assert updated_table == %{table | result: :void}
+    end
+
+    test "doesnt change dealer hand if hit and shoe is empty, and mark table result as void" do
+      table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
+
+      updated_table = table |> Table.play(:dealer)
+
+      assert updated_table == %{table | result: :void}
+    end
+
+    test "makes the dealer hit recursively while < 17" do
+      table =
+        Table.new(~C[A 2 3 4 5]h)
+        |> Table.play(:dealer)
+
+      assert table.dealer == Hand.new() |> Hand.add_card(~C[A 2 3 4]h)
     end
 
     test "allows a player to decide to stand or hit" do
@@ -109,29 +133,14 @@ defmodule Blackjack.TableTest do
         |> Table.play(:charlie, fn _hand_value ->
           %PlayCommand{id: :charlie, command: Enum.random([:stand, :hit])}
         end)
+        |> Table.play(:dealer)
 
       %{table: table}
     end
 
-    test "deals last cards to the dealer", %{table: table} do
-      # one card was already delt to the dealer
-      assert Hand.size(table.dealer) == 1
-      resolved_table = Table.resolve(table)
-      # at least one more card was dealt to the dealer
-      assert Hand.size(resolved_table.dealer) > 1
-      # value of dealer hand is >= 17
-      assert resolved_table.dealer.value >= 17
-    end
-
-    test "doesnt change dealer hand if shoe is empty, and mark table result as void" do
-      table = Table.new([])
-
-      updated_table = table |> Table.resolve(:dealer)
-
-      assert updated_table == %{table | result: :void}
-    end
-
     test "decide :win or :lose for each player", %{table: table} do
+      assert table.dealer.value >= 17
+
       %Table{result: result} = Table.resolve(table)
 
       assert length(result) == 3

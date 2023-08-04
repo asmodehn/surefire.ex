@@ -1,3 +1,13 @@
+defmodule Blackjack.Dealer do
+  def hit_or_stand(hand, shoe \\ []) do
+    if hand.value >= 17 do
+      :stand
+    else
+      :hit
+    end
+  end
+end
+
 defmodule Blackjack.Player do
   defmodule PlayCommand do
     defstruct id: nil, command: :stand

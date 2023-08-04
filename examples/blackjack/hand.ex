@@ -68,6 +68,8 @@ defmodule Blackjack.Hand do
     %{hand | cards: new_cards, value: value(new_cards)}
   end
 
+  # TODO : soft or hard hand function check, to prevent caring about this in other modules...
+
   def size(%__MODULE__{} = hand) do
     length(hand.cards)
   end

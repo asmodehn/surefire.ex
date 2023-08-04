@@ -6,6 +6,7 @@ defmodule Blackjack.Table do
 
   @derive {Inspect, only: [:dealer, :players, :result]}
   defstruct void_under: 1,
+            # TODO : maybe shoe is special and can be its own struct ?
             shoe: [],
             dealer: %Hand{},
             players: %{},
@@ -82,11 +83,44 @@ defmodule Blackjack.Table do
   end
 
   @doc """
-  Player turn on the table.
-  If a player has no card, nothing changes.
-  Same if players hand value is an atom (bust or blackjack).
-  Otherwise, a card may be dealt.
+  Player (or dealer) turn on the table.
+  - If result is void, nothing changes (identity)
+  - If a player has no card, nothing changes (identity)
+  - If players hand value is an atom (bust or blackjack), nothing changes (identity)
+  Otherwise, a card may be dealt, if player decides to :hit.
   """
+
+  def play(%__MODULE__{result: :void} = table, _) do
+    table
+  end
+
+  # TODO : get rid of this after simplify call for player
+  def play(%__MODULE__{result: :void} = table, _, _) do
+    table
+  end
+
+  def play(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer)
+      when is_integer(dealer_hand.value) do
+    # otherwise bust or blackjack -> stop # TODO : proper hand module function
+    full_table =
+      case Blackjack.Dealer.hit_or_stand(dealer_hand) do
+        :hit ->
+          table
+          |> deal(:dealer)
+          # recurse until :stand
+          |> play(:dealer)
+
+        _ ->
+          table
+      end
+
+    full_table |> resolve()
+  end
+
+  def play(%__MODULE__{} = table, :dealer) do
+    table
+  end
+
   def play(%__MODULE__{players: players} = table, player_id, player_request) do
     if is_nil(players[player_id]) or is_atom(players[player_id].value) do
       # Ref from wikipedia:
@@ -117,26 +151,18 @@ defmodule Blackjack.Table do
   Decides if a player :win or :lose
   """
 
-  #  def resolve(%__MODULE__{} = table, _)
-  #      when length(table.shoe) < table.void_under do
-  #    %{table | result: :void}
-  #  end
-  def resolve(%__MODULE__{dealer: dealer_hand, result: result} = table, :dealer)
-      when result != :void and is_integer(dealer_hand.value) and dealer_hand.value < 17 do
-    table
-    # deal one card more to the dealer (if available in shoe...)
-    |> deal(:dealer)
-    # and recurse until >= 17 or bust or blackjack
-    |> resolve(:dealer)
-  end
-
-  def resolve(%__MODULE__{} = table, :dealer) do
-    # identity by default => table doesnt change
+  def resolve(%__MODULE__{result: :void} = table) do
     table
   end
 
-  def resolve(%__MODULE__{players: players, result: result} = table, player)
-      when is_atom(player) and is_list(result) do
+  def resolve(%__MODULE__{result: :void} = table, _) do
+    table
+  end
+
+  def resolve(%__MODULE__{players: players, dealer: dealer_hand, result: result} = table, player)
+      when is_atom(dealer_hand) or
+             (dealer_hand.value >= 17 and
+                is_atom(player) and is_list(result)) do
     # TODO : handle "push" when both are equal...
     hand_comp = Hand.compare(players[player], table.dealer)
     # TODO : review actual cases (with tests) here
@@ -147,15 +173,10 @@ defmodule Blackjack.Table do
     end
   end
 
-  def resolve(%__MODULE__{players: players} = table) do
-    updated_table = table |> resolve(:dealer)
-
-    if updated_table.result == :void do
-      updated_table
-    else
-      for p <- Map.keys(players), reduce: updated_table do
-        acc_table -> resolve(acc_table, p)
-      end
+  def resolve(%__MODULE__{players: players, dealer: dealer_hand} = table)
+      when is_atom(dealer_hand) or dealer_hand.value >= 17 do
+    for p <- Map.keys(players), reduce: table do
+      acc_table -> resolve(acc_table, p)
     end
   end
 end

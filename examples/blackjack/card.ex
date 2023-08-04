@@ -98,6 +98,7 @@ defmodule Blackjack.Card do
   defstruct value: nil, color: nil
 
   @type t :: %__MODULE__{
+          # TODO : rank and suit instead...
           value: non_neg_integer(),
           color: atom()
         }

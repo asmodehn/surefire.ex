@@ -131,7 +131,7 @@ defmodule Blackjack.Game do
     To the end, where the dealer get cards until >17
   """
   def resolve(%__MODULE__{bets: bets, table: table} = g) do
-    updated_table = table |> Table.resolve()
+    updated_table = table |> Table.play(:dealer) |> Table.resolve()
 
     if updated_table.result == :void do
       {%{g | table: updated_table}, [:game_is_void]}
