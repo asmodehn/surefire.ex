@@ -29,19 +29,19 @@ defmodule Blackjack.Game do
 
   # Note: on player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
+  #
+  #  def new() do
+  #    %{
+  #      %__MODULE__{}
+  #      | table:
+  #          Table.new(
+  #            # default shoe of 3 decks...
+  #            Enum.shuffle(Card.deck() ++ Card.deck() ++ Card.deck())
+  #          )
+  #    }
+  #  end
 
-  def new() do
-    %{
-      %__MODULE__{}
-      | table:
-          Table.new(
-            # default shoe of 3 decks...
-            Enum.shuffle(Card.deck() ++ Card.deck() ++ Card.deck())
-          )
-    }
-  end
-
-  def new(shoe) do
+  def new(shoe \\ []) do
     %{%__MODULE__{} | table: Table.new(shoe)}
   end
 
@@ -59,14 +59,22 @@ defmodule Blackjack.Game do
     Only take in the game players who have already bet something...
   other player stay in game, but don't receive cards and cannot play.
   """
-  def deal(%__MODULE__{bets: bets} = game) do
-    table = Table.deal(game.table, Bets.players(bets))
+  def deal(%__MODULE__{bets: bets} = game), do: deal(game, Bets.players(bets))
+
+  def deal(%__MODULE__{} = game, player_ids) when is_list(player_ids) do
+    table = Table.deal(game.table, player_ids ++ [:dealer] ++ player_ids)
 
     %{game | table: table}
   end
 
-  def deal(%__MODULE__{table: table} = game, player_id) when is_atom(player_id) do
-    %{game | table: table |> Table.deal(player_id)}
+  def deal(%__MODULE__{bets: bets, table: table} = game, player_id)
+      when is_atom(player_id) do
+    if player_id in Bets.players(bets) do
+      %{game | table: table |> Table.deal(player_id)}
+    else
+      # no bet -> no card
+      game
+    end
   end
 
   @doc ~s"""
@@ -74,14 +82,12 @@ defmodule Blackjack.Game do
   """
   def play(%__MODULE__{table: table} = game, player_request, player_ids)
       when is_list(player_ids) do
-    # TODO: make sure somehow that all players who did bet have a hand.
-    played_game =
-      for p <- player_ids, reduce: game do
-        game ->
-          IO.inspect("#{p} turn...")
+    for p <- player_ids, reduce: game do
+      game ->
+        IO.inspect("#{p} turn...")
 
-          game |> play(player_request, p)
-      end
+        game |> play(player_request, p)
+    end
   end
 
   def play(%__MODULE__{bets: bets, table: table} = game, player_request, player_id)
@@ -120,23 +126,30 @@ defmodule Blackjack.Game do
     end
   end
 
+  # TODO : resolve and play should be the same (bust allowed during play, void possible in play, etc.)
   @doc ~s"""
     To the end, where the dealer get cards until >17
   """
   def resolve(%__MODULE__{bets: bets, table: table} = g) do
-    {updated_table, win_or_lose} = table |> Table.resolve()
+    updated_table = table |> Table.resolve()
 
-    for {p, wl} <- win_or_lose, reduce: {g, []} do
-      {acc, evt} ->
-        case wl do
-          :win ->
-            {updated_acc, generated_evts} = player_win(acc, p)
-            {updated_acc, evt ++ generated_evts}
+    if updated_table.result == :void do
+      {%{g | table: updated_table}, [:game_is_void]}
+    else
+      updated_table.result |> IO.inspect()
 
-          :lose ->
-            {updated_acc, generated_evts} = player_lose(acc, p)
-            {updated_acc, evt ++ generated_evts}
-        end
+      for {p, wl} <- updated_table.result, reduce: {%{g | table: updated_table}, []} do
+        {acc, evt} ->
+          case wl do
+            :win ->
+              {updated_acc, generated_evts} = player_win(acc, p)
+              {updated_acc, evt ++ generated_evts}
+
+            :lose ->
+              {updated_acc, generated_evts} = player_lose(acc, p)
+              {updated_acc, evt ++ generated_evts}
+          end
+      end
     end
   end
 
