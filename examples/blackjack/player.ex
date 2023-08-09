@@ -38,7 +38,7 @@ defmodule Blackjack.Player do
   #
 
   # TODO review dispatching on avatar here...
-  def hit_or_stand(%__MODULE__{avatar: avatar} = player, player_hand, dealer_hand) do
+  def hit_or_stand(%__MODULE__{avatars: avatar} = player, player_hand, dealer_hand) do
     apply(avatar, :hit_or_stand, [player_hand, dealer_hand])
   end
 

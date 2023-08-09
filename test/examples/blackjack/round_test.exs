@@ -1,30 +1,30 @@
-defmodule Blackjack.GameTest do
+defmodule Blackjack.RoundTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.{Game, Hand}
+  alias Blackjack.{Round, Hand}
 
   use Blackjack.Card.Sigil
 
   describe "new/1" do
     test "accepts an empty deck as the shoe" do
-      game = Game.new(~C[])
+      game = Round.new(~C[])
       assert game.table.shoe == ~C[]
     end
 
     test "uses an empty deck as default shoe" do
-      game = Game.new()
+      game = Round.new()
       assert game.table.shoe == ~C[]
     end
 
     test "accepts a deck of cards as the shoe" do
-      game = Game.new(~C[3 6 8 10 Q]c)
+      game = Round.new(~C[3 6 8 10 Q]c)
       assert game.table.shoe == ~C[3 6 8 10 Q]c
     end
   end
 
   describe "bet/3" do
     test "accepts the bet of a player" do
-      game = Game.new() |> Game.bet(:bob, 45)
+      game = Round.new() |> Round.bet(:bob, 45)
 
       # TODO :maybe this is one level too much ?
       assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
@@ -34,9 +34,9 @@ defmodule Blackjack.GameTest do
   describe "deal/2" do
     test "deals no card when shoe is empty and mark table as void" do
       game =
-        Game.new()
-        |> Game.bet(:bob, 45)
-        |> Game.deal(:bob)
+        Round.new()
+        |> Round.bet(:bob, 45)
+        |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
       # => bob has no hand
@@ -48,9 +48,9 @@ defmodule Blackjack.GameTest do
 
     test "deals card to a player with a bet" do
       game =
-        Game.new(~C[5 8 K]h)
-        |> Game.bet(:bob, 45)
-        |> Game.deal(:bob)
+        Round.new(~C[5 8 K]h)
+        |> Round.bet(:bob, 45)
+        |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
       assert game.table.players == %{bob: Hand.new() |> Hand.add_card(~C[5]h)}
@@ -60,9 +60,9 @@ defmodule Blackjack.GameTest do
 
     test "deals no card to a player without a bet" do
       game =
-        Game.new(~C[5 8 K]h)
-        |> Game.bet(:alice, 45)
-        |> Game.deal(:bob)
+        Round.new(~C[5 8 K]h)
+        |> Round.bet(:alice, 45)
+        |> Round.deal(:bob)
 
       assert game.table.players == %{}
       # cards left in shoe
@@ -73,10 +73,10 @@ defmodule Blackjack.GameTest do
   describe "play/3" do
     test "a player without any card cannot play" do
       game =
-        Game.new(~C[5 8 K]h)
-        |> Game.bet(:bob, 45)
+        Round.new(~C[5 8 K]h)
+        |> Round.bet(:bob, 45)
 
-      updated_game = game |> Game.play(nil, :bob)
+      updated_game = game |> Round.play(nil, :bob)
 
       assert updated_game == game
     end
@@ -87,12 +87,12 @@ defmodule Blackjack.GameTest do
       end
 
       game =
-        Game.new(~C[5 8 K]h)
-        |> Game.bet(:bob, 45)
-        |> Game.deal()
+        Round.new(~C[5 8 K]h)
+        |> Round.bet(:bob, 45)
+        |> Round.deal()
 
       assert_raise RuntimeError, "player_hand: 5♥,K♥: 15, dealer_hand: 8♥: 8", fn ->
-        game |> Game.play(bob_request, :bob)
+        game |> Round.play(bob_request, :bob)
       end
     end
   end
@@ -100,17 +100,17 @@ defmodule Blackjack.GameTest do
   describe "resolve" do
     test "decides if a player wins and update bets" do
       game =
-        Game.new(~C[A 8 K]h ++ ~C[A]s)
-        |> Game.bet(:bob, 45)
-        # CAREFUL : Game.deal deals one card to each player in list, then dealer, then players again
-        |> Game.deal([:bob])
+        Round.new(~C[A 8 K]h ++ ~C[A]s)
+        |> Round.bet(:bob, 45)
+        # CAREFUL : Round.deal deals one card to each player in list, then dealer, then players again
+        |> Round.deal([:bob])
 
       # blackjack
       assert game.table.players[:bob] == Hand.new() |> Hand.add_card(~C[A K]h)
       # only one card at this stage
       assert game.table.dealer == Hand.new() |> Hand.add_card(~C[8]h)
 
-      {resolved_game, [bob_exit]} = game |> Game.resolve()
+      {resolved_game, [bob_exit]} = game |> Round.resolve()
       # 21 >= 19 >= 17
       assert resolved_game.table.dealer == Hand.new() |> Hand.add_card(~C[8]h ++ ~C[A]s)
 
@@ -121,16 +121,16 @@ defmodule Blackjack.GameTest do
 
     test "decides if a player loses and update bets" do
       game =
-        Game.new(~C[5 J K A]h)
-        |> Game.bet(:bob, 45)
-        |> Game.deal([:bob])
+        Round.new(~C[5 J K A]h)
+        |> Round.bet(:bob, 45)
+        |> Round.deal([:bob])
 
       # 15
       assert game.table.players[:bob] == Hand.new() |> Hand.add_card(~C[5 K]h)
       # blackjack
       assert game.table.dealer == Hand.new() |> Hand.add_card(~C[J]h)
 
-      {resolved_game, [bob_exit]} = game |> Game.resolve()
+      {resolved_game, [bob_exit]} = game |> Round.resolve()
       # blackjack
       assert resolved_game.table.dealer == Hand.new() |> Hand.add_card(~C[J A]h)
 
@@ -144,16 +144,16 @@ defmodule Blackjack.GameTest do
   describe "one-player game" do
     test "can go on until the end" do
       game =
-        Game.new(~C[]h ++ ~C[]s ++ ~C[]c ++ ~C[]d)
-        |> Game.bet(:alice, 12)
-        |> Game.deal()
+        Round.new(~C[]h ++ ~C[]s ++ ~C[]c ++ ~C[]d)
+        |> Round.bet(:alice, 12)
+        |> Round.deal()
 
       # TODO : assert hands
 
       game
-      |> Game.play(fn ph, dh -> :stand end)
+      |> Round.play(fn _ph, _dh -> :stand end)
       |> IO.inspect()
-      |> Game.resolve()
+      |> Round.resolve()
       |> IO.inspect()
     end
 

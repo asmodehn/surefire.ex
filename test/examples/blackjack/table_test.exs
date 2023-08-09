@@ -2,7 +2,6 @@ defmodule Blackjack.TableTest do
   use ExUnit.Case, async: true
 
   alias Blackjack.{Card, Table, Hand}
-  alias Blackjack.Player.PlayCommand
 
   use Blackjack.Card.Sigil
 

@@ -12,7 +12,7 @@ defmodule Blackjack do
 
   """
 
-  alias Blackjack.Game
+  alias Blackjack.Round
   alias Blackjack.Event.{PlayerExit}
 
   #    @derive {Inspect, only: [:players]}

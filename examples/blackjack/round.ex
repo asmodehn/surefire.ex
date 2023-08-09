@@ -1,14 +1,14 @@
-defmodule Blackjack.Game do
+defmodule Blackjack.Round do
   @moduledoc ~s"""
   This module manages one game of blackjack.
 
   To run a quick game:
 
-    iex> g = Blackjack.Game.new()
-    iex> g = g |> Blackjack.Game.bet(:mememe, 21)
-    iex> g = g |> Blackjack.Game.deal()
-    iex> g = g |> Blackjack.Game.play()
-    iex> g = g |> Blackjack.Game.resolve()
+    iex> g = Blackjack.Round.new()
+    iex> g = g |> Blackjack.Round.bet(:mememe, 21)
+    iex> g = g |> Blackjack.Round.deal()
+    iex> g = g |> Blackjack.Round.play()
+    iex> g = g |> Blackjack.Round.resolve()
   """
 
   #  defmodule PlayerDone do

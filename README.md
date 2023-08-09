@@ -16,6 +16,8 @@ and adjust the amount of games to follow the basic "quitting while ahead" strate
 - **Avatar**: What is usually called a "player" in a game. That is the player who cares only about one game.
   It decides what to do at which time (prompted by the game), based on current game information only.
 - **Player**: The strategic player, that owns credits and plays multiple games in a row, potentially learning over time...
+- **Round**: What is usually called a "game". However this is limited to one instance of it, and it only involves **Avatars**, not players.
+- **Game**: The long-running gmae, consisting of multiple similar rounds... Player's strategy is what that matters here.
 
 ## Features
  
