@@ -19,8 +19,9 @@ defmodule Blackjack.Game do
   alias Blackjack.Event.{PlayerExit}
 
   @derive {Inspect, only: [:bets, :table]}
+  # TODO : add full player structure at this stage -> allow dispatching from here depending on implementation...
   defstruct bets: %Bets{},
-            # TODO : number max of betting boxes ?
+            # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
             table: %Table{},
             # This is a container for events, that have already been consumed
             # others are still considered "in flight"
@@ -98,7 +99,8 @@ defmodule Blackjack.Game do
           table
           |> Table.play(
             player_id,
-            &player_request.(player_id, &1)
+            # TODO : expose entire avatar to game -> dispatch here to proper impl
+            fn ph, dh -> player_request.(ph, dh) end
             # &Blackjack.Player.hit_or_stand(game.players[p], &1)
           )
     }
@@ -113,17 +115,10 @@ defmodule Blackjack.Game do
   it relies on player_choice/2 for prompting the user in IEx.
   """
   def play(%__MODULE__{bets: bets} = game) do
-    game |> play(&player_choice/2)
-  end
-
-  @doc """
-  The default player choice when nothing else is passed in play/2
-  """
-  defp player_choice(player_id, hand_value) when is_atom(player_id) do
-    case ExPrompt.choose("#{player_id} with hand: #{hand_value} chooses ", [:hit, :stand]) do
-      0 -> %Blackjack.Player.PlayCommand{id: player_id, command: :hit}
-      _ -> %Blackjack.Player.PlayCommand{id: player_id, command: :stand}
-    end
+    game
+    |> play(fn
+      ph, dh -> Blackjack.Avatar.IEx.hit_or_stand(ph, dh)
+    end)
   end
 
   # TODO : resolve and play should be the same (bust allowed during play, void possible in play, etc.)

@@ -81,17 +81,17 @@ defmodule Blackjack.GameTest do
       assert updated_game == game
     end
 
-    test "calls player_request with id of a player and hand value" do
+    test "calls player_request with player hand and dealer hand" do
       bob_request = fn
-        pid, phv -> raise "player_id: #{pid}, player_hand_value: #{phv}"
+        ph, dh -> raise "player_hand: #{ph}, dealer_hand: #{dh}"
       end
 
       game =
         Game.new(~C[5 8 K]h)
         |> Game.bet(:bob, 45)
-        |> Game.deal(:bob)
+        |> Game.deal()
 
-      assert_raise RuntimeError, ~r/^player_id: bob, player_hand_value: (\d+)$/, fn ->
+      assert_raise RuntimeError, "player_hand: 5♥,K♥: 15, dealer_hand: 8♥: 8", fn ->
         game |> Game.play(bob_request, :bob)
       end
     end
@@ -151,7 +151,7 @@ defmodule Blackjack.GameTest do
       # TODO : assert hands
 
       game
-      |> Game.play(fn p, _v -> %Blackjack.Player.PlayCommand{id: p, command: :stand} end)
+      |> Game.play(fn ph, dh -> :stand end)
       |> IO.inspect()
       |> Game.resolve()
       |> IO.inspect()

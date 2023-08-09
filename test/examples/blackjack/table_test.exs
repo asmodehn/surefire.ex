@@ -72,11 +72,12 @@ defmodule Blackjack.TableTest do
     test "doesnt change player hand if hit and shoe is empty, and mark table result as void" do
       table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
 
-      updated_table = table |> Table.play(:bob, fn _ -> %PlayCommand{id: :bob, command: :hit} end)
+      updated_table = table |> Table.play(:bob, fn _ph, _dh -> :hit end)
 
       assert updated_table == %{table | result: :void}
     end
 
+    @tag :current
     test "doesnt change dealer hand if hit and shoe is empty, and mark table result as void" do
       table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
 
@@ -100,20 +101,16 @@ defmodule Blackjack.TableTest do
 
       # TODO : detemrinist test with known cards in shoe.
       # Currently test pass even if :bust or :blackjack
-      same_table =
-        Table.play(table, :alice, fn _hand_value -> %PlayCommand{id: :alice, command: :stand} end)
+      same_table = Table.play(table, :alice, fn _hand_value, _dh -> :stand end)
 
       assert same_table.players[:alice].value == table.players[:alice].value
 
-      updated_table =
-        Table.play(same_table, :bob, fn _hand_value -> %PlayCommand{id: :bob, command: :hit} end)
+      updated_table = Table.play(same_table, :bob, fn _hand_value, _dh -> :hit end)
 
       assert updated_table.players[:bob].value >= same_table.players[:bob].value
 
       final_table =
-        Table.play(updated_table, :charlie, fn _hand_value ->
-          %PlayCommand{id: :charlie, command: Enum.random([:stand, :hit])}
-        end)
+        Table.play(updated_table, :charlie, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
 
       assert final_table.players[:charlie].value >= same_table.players[:charlie].value
     end
@@ -124,15 +121,9 @@ defmodule Blackjack.TableTest do
       table =
         Table.new(Card.deck())
         |> Table.deal([:alice, :bob, :charlie, :dealer, :alice, :bob, :charlie])
-        |> Table.play(:alice, fn _hand_value ->
-          %PlayCommand{id: :alice, command: Enum.random([:stand, :hit])}
-        end)
-        |> Table.play(:bob, fn _hand_value ->
-          %PlayCommand{id: :bob, command: Enum.random([:stand, :hit])}
-        end)
-        |> Table.play(:charlie, fn _hand_value ->
-          %PlayCommand{id: :charlie, command: Enum.random([:stand, :hit])}
-        end)
+        |> Table.play(:alice, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
+        |> Table.play(:bob, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
+        |> Table.play(:charlie, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
         |> Table.play(:dealer)
 
       %{table: table}

@@ -19,6 +19,8 @@ defmodule Blackjack do
   defstruct players: %{},
             games: []
 
+  # TODO : map of games, to match games with avatars...
+
   # TODO : we should add the total house bank amount here...
 
   @doc """
@@ -59,7 +61,7 @@ defmodule Blackjack do
   end
 
   def play(%__MODULE__{players: players, games: [game | old_games]} = bj) do
-    player_call = fn p, hv -> Blackjack.Player.hit_or_stand(players[p], hv) end
+    player_call = fn ph, dh -> Blackjack.Player.hit_or_stand(ph, dh) end
 
     played_game =
       game

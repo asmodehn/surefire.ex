@@ -1,5 +1,6 @@
 # Surefire
 
+## How to use
 Surefire is a package helping you write simple betting games that are somewhat "cost-aware".
 Basic Money management is enforced by Surefire, aiming to minimize losses of the player over the long term.
 
@@ -10,7 +11,13 @@ Because of Surefire's concerns, each game can be played multiple times, as in re
 with an initial amount of credits. It is therefore possible to learn gameplay, discover game strategies, 
 and adjust the amount of games to follow the basic "quitting while ahead" strategy as well.
 
-It provides: (Roadmap)
+## Concepts (WIP)
+
+- **Avatar**: What is usually called a "player" in a game. That is the player who cares only about one game.
+  It decides what to do at which time (prompted by the game), based on current game information only.
+- **Player**: The strategic player, that owns credits and plays multiple games in a row, potentially learning over time...
+
+## Features
  
 INITIALLY: (WIP)
 - a set of example games, fully functional via IEx. Multiple players can connect over multiple iex sessions to the same VM.

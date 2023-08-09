@@ -9,6 +9,7 @@ defmodule Blackjack.Table do
             # TODO : maybe shoe is special and can be its own struct ?
             shoe: [],
             dealer: %Hand{},
+            # confusing : players -> hands
             players: %{},
             result: []
 
@@ -99,11 +100,16 @@ defmodule Blackjack.Table do
     table
   end
 
-  def play(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer)
+  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
+      when is_integer(dealer_hand.value) do
+    play(table, :dealer, &Blackjack.Dealer.hit_or_stand/2)
+  end
+
+  def play(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer, dealer_request)
       when is_integer(dealer_hand.value) do
     # otherwise bust or blackjack -> stop # TODO : proper hand module function
     full_table =
-      case Blackjack.Dealer.hit_or_stand(dealer_hand) do
+      case dealer_request.(dealer_hand, dealer_hand) do
         :hit ->
           table
           |> deal(:dealer)
@@ -121,6 +127,17 @@ defmodule Blackjack.Table do
     table
   end
 
+  def play(%__MODULE__{players: players} = table, player_id) do
+    if is_nil(players[player_id]) or is_atom(players[player_id].value) do
+      # Ref from wikipedia:
+      # A hand can "hit" as often as desired until the total is 21 or more.
+      # Players must stand on a total of 21.
+      table
+    else
+      play(table, player_id, &Blackjack.Avatar.IEx.hit_or_stand/2)
+    end
+  end
+
   def play(%__MODULE__{players: players} = table, player_id, player_request) do
     if is_nil(players[player_id]) or is_atom(players[player_id].value) do
       # Ref from wikipedia:
@@ -128,12 +145,9 @@ defmodule Blackjack.Table do
       # Players must stand on a total of 21.
       table
     else
-      %Blackjack.Player.PlayCommand{id: ^player_id, command: act} =
-        player_request.(players[player_id].value)
-
       # TODO :  a more clean/formal way to requesting from player,
       #    and player confirming action (to track for replays...)
-      case act do
+      case player_request.(players[player_id], table.dealer) do
         :stand ->
           table
 

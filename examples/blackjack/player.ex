@@ -1,13 +1,3 @@
-defmodule Blackjack.Dealer do
-  def hit_or_stand(hand, shoe \\ []) do
-    if hand.value >= 17 do
-      :stand
-    else
-      :hit
-    end
-  end
-end
-
 defmodule Blackjack.Player do
   defmodule PlayCommand do
     defstruct id: nil, command: :stand
@@ -21,7 +11,12 @@ defmodule Blackjack.Player do
   # But Surefire already has most of mandatory data for a game...
   # some extra data can be added if needed by the game however.
   defstruct sf: nil,
-            extra_stuff: nil
+            extra_stuff: nil,
+            # TMP new avatar implementation... WIP
+            # TODO : map of avatars...
+            avatars: Blackjack.Avatar.IEx
+
+  # TODO : review whole design here...
 
   def new_interactive() do
     %__MODULE__{sf: Surefire.IExPlayer.new()}
@@ -35,21 +30,16 @@ defmodule Blackjack.Player do
     %GainEvent{id: Surefire.Player.id(player.sf), gain: gain}
   end
 
-  def hit_stand(%__MODULE__{} = player, hit_or_stand)
-      when hit_or_stand in [:hit, :stand] do
-    %PlayCommand{id: Surefire.Player.id(player.sf), command: hit_or_stand}
-  end
+  #  def hit_stand(%__MODULE__{} = player, hit_or_stand)
+  #      when hit_or_stand in [:hit, :stand] do
+  #    %PlayCommand{id: Surefire.Player.id(player.sf), command: hit_or_stand}
+  #  end
+  #
+  #
 
-  def hit_or_stand(%__MODULE__{} = player, value) do
-    Surefire.Player.decide(
-      player.sf,
-      "Position at #{value}. What to do ?",
-      %{
-        "Hit" => hit_stand(player, :hit),
-        "Stand" => hit_stand(player, :stand)
-        # TODO : more options... Ref : https://en.wikipedia.org/wiki/Blackjack#Player_decisions
-      }
-    )
+  # TODO review dispatching on avatar here...
+  def hit_or_stand(%__MODULE__{avatar: avatar} = player, player_hand, dealer_hand) do
+    apply(avatar, :hit_or_stand, [player_hand, dealer_hand])
   end
 
   # TODO : automated (AI) player for multiplyer games...
@@ -75,9 +65,7 @@ defmodule Blackjack.Player do
       %Blackjack.Player{player | sf: Surefire.Player.get(player.sf, gain)}
     end
 
-    def decide(%Blackjack.Player{} = player, prompt, choices) do
-      # TODO : same structure as other functions...
-      Surefire.Player.decide(player.sf, prompt, choices)
+    def avatar(%Blackjack.Player{} = player, game_id) do
     end
   end
 end

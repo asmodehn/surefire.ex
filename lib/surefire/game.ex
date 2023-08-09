@@ -1,5 +1,4 @@
 defprotocol Surefire.Game do
-
   @moduledoc ~s"""
     This module describe the rules of the game.
     Specifically what gains are associated with which events.
@@ -7,7 +6,6 @@ defprotocol Surefire.Game do
     Also, this defines an interface that can be easily embedded in a Process, to keep state isolated.
     Therefore, Surefire also provide a Module defining this process for convenience
   """
-
 
   # Note : there are mutliple players in a game.
   # To be able to easily do:
@@ -25,12 +23,4 @@ defprotocol Surefire.Game do
   # Note : if we keep track of all actions, we can make it an enumerable as well ?? -> allows replays
 
   def into(game, rules)
-
-
-
-
 end
-
-
-
-
