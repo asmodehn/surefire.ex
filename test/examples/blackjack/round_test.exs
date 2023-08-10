@@ -1,7 +1,7 @@
 defmodule Blackjack.RoundTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.{Round, Hand}
+  alias Blackjack.{Round, Hand, Avatar}
 
   use Blackjack.Card.Sigil
 
@@ -23,11 +23,20 @@ defmodule Blackjack.RoundTest do
   end
 
   describe "bet/3" do
-    test "accepts the bet of a player" do
-      game = Round.new() |> Round.bet(:bob, 45)
+    test "accepts the bet of an avatar" do
+      game = Round.new() |> Round.bet(Avatar.Random.new(:bob), 45)
 
       # TODO :maybe this is one level too much ?
       assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
+      assert game.avatars == %{bob: Blackjack.Avatar.Random.new(:bob)}
+    end
+
+    test "stores the avatar in the list for this round" do
+      game = Round.new() |> Round.bet(Avatar.Random.new(:bob), 45)
+
+      # TODO :maybe this is one level too much ?
+      assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
+      assert game.avatars == %{bob: Blackjack.Avatar.Random.new(:bob)}
     end
   end
 
@@ -35,7 +44,7 @@ defmodule Blackjack.RoundTest do
     test "deals no card when shoe is empty and mark table as void" do
       game =
         Round.new()
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Random.new(:bob), 45)
         |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
@@ -49,7 +58,7 @@ defmodule Blackjack.RoundTest do
     test "deals card to a player with a bet" do
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Random.new(:bob), 45)
         |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
@@ -61,7 +70,7 @@ defmodule Blackjack.RoundTest do
     test "deals no card to a player without a bet" do
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(:alice, 45)
+        |> Round.bet(Avatar.Random.new(:alice), 45)
         |> Round.deal(:bob)
 
       assert game.table.players == %{}
@@ -70,13 +79,13 @@ defmodule Blackjack.RoundTest do
     end
   end
 
-  describe "play/3" do
+  describe "play/2" do
     test "a player without any card cannot play" do
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Random.new(:bob), 45)
 
-      updated_game = game |> Round.play(nil, :bob)
+      updated_game = game |> Round.play(:bob)
 
       assert updated_game == game
     end
@@ -88,11 +97,11 @@ defmodule Blackjack.RoundTest do
 
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Custom.new(:bob, bob_request), 45)
         |> Round.deal()
 
       assert_raise RuntimeError, "player_hand: 5♥,K♥: 15, dealer_hand: 8♥: 8", fn ->
-        game |> Round.play(bob_request, :bob)
+        game |> Round.play(:bob)
       end
     end
   end
@@ -101,7 +110,7 @@ defmodule Blackjack.RoundTest do
     test "decides if a player wins and update bets" do
       game =
         Round.new(~C[A 8 K]h ++ ~C[A]s)
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Random.new(:bob), 45)
         # CAREFUL : Round.deal deals one card to each player in list, then dealer, then players again
         |> Round.deal([:bob])
 
@@ -122,7 +131,7 @@ defmodule Blackjack.RoundTest do
     test "decides if a player loses and update bets" do
       game =
         Round.new(~C[5 J K A]h)
-        |> Round.bet(:bob, 45)
+        |> Round.bet(Avatar.Random.new(:bob), 45)
         |> Round.deal([:bob])
 
       # 15
@@ -145,7 +154,7 @@ defmodule Blackjack.RoundTest do
     test "can go on until the end" do
       game =
         Round.new(~C[]h ++ ~C[]s ++ ~C[]c ++ ~C[]d)
-        |> Round.bet(:alice, 12)
+        |> Round.bet(Avatar.Random.new(:alice), 12)
         |> Round.deal()
 
       # TODO : assert hands

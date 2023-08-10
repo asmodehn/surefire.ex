@@ -17,7 +17,7 @@ defmodule Blackjack do
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
-            games: []
+            rounds: []
 
   # TODO : map of games, to match games with avatars...
 
@@ -30,16 +30,16 @@ defmodule Blackjack do
     %__MODULE__{} |> new_game()
   end
 
-  def new_game(%__MODULE__{games: games}) do
+  def new_game(%__MODULE__{rounds: games}) do
     %__MODULE__{
-      games: [Game.new() | games]
+      rounds: [Round.new() | games]
     }
   end
 
   # TODO : new and bet are the same ? (blind bets -> start game ??)
   # semantics : open position... bet in the betting box
   def bet(
-        %__MODULE__{players: players, games: [game | old_games]} = bj,
+        %__MODULE__{players: players, rounds: [game | old_games]} = bj,
         %Blackjack.Player{} = player,
         amount
       )
@@ -56,19 +56,19 @@ defmodule Blackjack do
     %{
       bj
       | players: Map.update!(players, player_id, fn p -> p |> Surefire.Player.bet(amount) end),
-        games: [game |> Game.bet(player_id, amount) | old_games]
+        rounds: [game |> Round.bet(player_id, amount) | old_games]
     }
   end
 
-  def play(%__MODULE__{players: players, games: [game | old_games]} = bj) do
+  def play(%__MODULE__{players: players, rounds: [game | old_games]} = bj) do
     player_call = fn ph, dh -> Blackjack.Player.hit_or_stand(ph, dh) end
 
     played_game =
       game
-      |> Game.deal()
-      |> Game.play(player_call)
+      |> Round.deal()
+      |> Round.play(player_call)
 
-    %{bj | games: [played_game | old_games]}
+    %{bj | rounds: [played_game | old_games]}
   end
 
   @doc ~s"""
@@ -76,11 +76,11 @@ defmodule Blackjack do
     Modifies player's credits depending on game result.
   """
 
-  def resolve(%__MODULE__{games: [game | old_games]} = bj) do
-    {resolved_game, exits} = Game.resolve(game)
+  def resolve(%__MODULE__{rounds: [game | old_games]} = bj) do
+    {resolved_game, exits} = Round.resolve(game)
 
     for %Blackjack.Event.PlayerExit{id: pp_id, gain: gain} <- exits,
-        reduce: %{bj | games: [resolved_game | old_games]} do
+        reduce: %{bj | rounds: [resolved_game | old_games]} do
       %__MODULE__{} = acc ->
         %{
           acc

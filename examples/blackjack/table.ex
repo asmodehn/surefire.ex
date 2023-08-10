@@ -9,7 +9,7 @@ defmodule Blackjack.Table do
             # TODO : maybe shoe is special and can be its own struct ?
             shoe: [],
             dealer: %Hand{},
-            # confusing : players -> hands
+            # TODO confusing : players -> hands
             players: %{},
             result: []
 
@@ -100,10 +100,10 @@ defmodule Blackjack.Table do
     table
   end
 
-  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
-      when is_integer(dealer_hand.value) do
-    play(table, :dealer, &Blackjack.Dealer.hit_or_stand/2)
-  end
+  #  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
+  #      when is_integer(dealer_hand.value) do
+  #    play(table, :dealer, &Blackjack.Dealer.Blackjack.Avatar.hit_or_stand/3)
+  #  end
 
   def play(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer, dealer_request)
       when is_integer(dealer_hand.value) do
@@ -114,7 +114,7 @@ defmodule Blackjack.Table do
           table
           |> deal(:dealer)
           # recurse until :stand
-          |> play(:dealer)
+          |> play(:dealer, dealer_request)
 
         _ ->
           table
@@ -123,20 +123,21 @@ defmodule Blackjack.Table do
     full_table |> resolve()
   end
 
-  def play(%__MODULE__{} = table, :dealer) do
+  def play(%__MODULE__{} = table, :dealer, _) do
     table
   end
 
-  def play(%__MODULE__{players: players} = table, player_id) do
-    if is_nil(players[player_id]) or is_atom(players[player_id].value) do
-      # Ref from wikipedia:
-      # A hand can "hit" as often as desired until the total is 21 or more.
-      # Players must stand on a total of 21.
-      table
-    else
-      play(table, player_id, &Blackjack.Avatar.IEx.hit_or_stand/2)
-    end
-  end
+  #
+  #  def play(%__MODULE__{players: players} = table, player_id) do
+  #    if is_nil(players[player_id]) or is_atom(players[player_id].value) do
+  #      # Ref from wikipedia:
+  #      # A hand can "hit" as often as desired until the total is 21 or more.
+  #      # Players must stand on a total of 21.
+  #      table
+  #    else
+  #      play(table, player_id, &Blackjack.Avatar.IEx.hit_or_stand/2)
+  #    end
+  #  end
 
   def play(%__MODULE__{players: players} = table, player_id, player_request) do
     if is_nil(players[player_id]) or is_atom(players[player_id].value) do

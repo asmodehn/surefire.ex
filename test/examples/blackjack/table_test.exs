@@ -76,11 +76,10 @@ defmodule Blackjack.TableTest do
       assert updated_table == %{table | result: :void}
     end
 
-    @tag :current
     test "doesnt change dealer hand if hit and shoe is empty, and mark table result as void" do
       table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
 
-      updated_table = table |> Table.play(:dealer)
+      updated_table = table |> Table.play(:dealer, fn _h, _dh -> :hit end)
 
       assert updated_table == %{table | result: :void}
     end
@@ -88,7 +87,9 @@ defmodule Blackjack.TableTest do
     test "makes the dealer hit recursively while < 17" do
       table =
         Table.new(~C[A 2 3 4 5]h)
-        |> Table.play(:dealer)
+        |> Table.play(:dealer, fn
+          h, dh -> Blackjack.Avatar.hit_or_stand(%Blackjack.Dealer{}, h, dh)
+        end)
 
       assert table.dealer == Hand.new() |> Hand.add_card(~C[A 2 3 4]h)
     end
@@ -123,7 +124,9 @@ defmodule Blackjack.TableTest do
         |> Table.play(:alice, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
         |> Table.play(:bob, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
         |> Table.play(:charlie, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
-        |> Table.play(:dealer)
+        |> Table.play(:dealer, fn hv, dh ->
+          Blackjack.Avatar.hit_or_stand(%Blackjack.Dealer{}, hv, dh)
+        end)
 
       %{table: table}
     end
