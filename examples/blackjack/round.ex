@@ -31,32 +31,21 @@ defmodule Blackjack.Round do
             # TODO trace events and/or previous tables ???
             trace: []
 
-  # Note: on player can play multiple  positions/boxes.
+  # Note: one player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
-  #
-  #  def new() do
-  #    %{
-  #      %__MODULE__{}
-  #      | table:
-  #          Table.new(
-  #            # default shoe of 3 decks...
-  #            Enum.shuffle(Card.deck() ++ Card.deck() ++ Card.deck())
-  #          )
-  #    }
-  #  end
 
   def new(shoe \\ []) do
     %{%__MODULE__{} | table: Table.new(shoe)}
   end
 
   # rename to "enter" or something similar ??
-  def bet(%__MODULE__{bets: bets, trace: trace} = round, avatar, amount)
+  def bet(%__MODULE__{bets: bets, trace: _trace, avatars: avatars} = round, avatar, amount)
       when is_number(amount) do
     # TODO : make sure avatar implements avatar behaviour...
     %{
       round
       | bets: bets |> Bets.player_bet(Avatar.id(avatar), amount),
-        avatars: round.avatars |> Map.put(Avatar.id(avatar), avatar)
+        avatars: avatars |> Map.put(Avatar.id(avatar), avatar)
         #  ,        trace: trace ++ [:event_player_bet]  # TODO : proper event struct
     }
   end
@@ -86,7 +75,7 @@ defmodule Blackjack.Round do
   @doc ~s"""
     The play phase, where each player makes decisions, and cards are dealt
   """
-  def play(%__MODULE__{table: table, avatars: avatars} = game, avatar_ids)
+  def play(%__MODULE__{} = game, avatar_ids)
       when is_list(avatar_ids) do
     for a_id <- avatar_ids, reduce: game do
       game ->
@@ -96,16 +85,16 @@ defmodule Blackjack.Round do
     end
   end
 
-  def play(%__MODULE__{table: table, avatars: avatars} = game, :dealer) do
+  def play(%__MODULE__{} = game, :dealer) do
     game |> play(%Blackjack.Dealer{})
   end
 
-  def play(%__MODULE__{table: table, avatars: avatars} = game, avatar_id)
+  def play(%__MODULE__{avatars: avatars} = game, avatar_id)
       when is_atom(avatar_id) do
     game |> play(avatars[avatar_id])
   end
 
-  def play(%__MODULE__{bets: bets, table: table} = game, avatar) do
+  def play(%__MODULE__{table: table} = game, avatar) do
     %{
       game
       | table:
@@ -134,7 +123,7 @@ defmodule Blackjack.Round do
   @doc ~s"""
     To the end, where the dealer get cards until >17
   """
-  def resolve(%__MODULE__{bets: bets, table: table} = g) do
+  def resolve(%__MODULE__{table: table} = g) do
     updated_table =
       table
       |> Table.play(:dealer, fn

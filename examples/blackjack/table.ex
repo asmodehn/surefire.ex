@@ -2,7 +2,7 @@ defmodule Blackjack.Table do
   @moduledoc """
   `Blackjack.Table` implements blackjack rules for a table.
   """
-  alias Blackjack.{Hand, Bets}
+  alias Blackjack.Hand
 
   @derive {Inspect, only: [:dealer, :players, :result]}
   defstruct void_under: 1,
@@ -11,6 +11,7 @@ defmodule Blackjack.Table do
             dealer: %Hand{},
             # TODO confusing : players -> hands
             players: %{},
+            # TODO : maybe only hte result of a function (resolve/1 ?)
             result: []
 
   @type t :: %__MODULE__{
@@ -38,7 +39,7 @@ defmodule Blackjack.Table do
   end
 
   # TODO : reshuffle after the shoe has been used "enough". between rounds only...
-  # => done by a new table => in game module instead ?
+  # => done by a new table/round => in game/round module instead ?
   # If round cannot be finished with current shoe -> void, reshuffle and start again.
 
   # TODO : prevent creating a player caller "dealer"... or work around the issue somehow ??
@@ -91,73 +92,52 @@ defmodule Blackjack.Table do
   Otherwise, a card may be dealt, if player decides to :hit.
   """
 
-  def play(%__MODULE__{result: :void} = table, _) do
-    table
-  end
-
   # TODO : get rid of this after simplify call for player
   def play(%__MODULE__{result: :void} = table, _, _) do
     table
   end
 
-  #  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer)
-  #      when is_integer(dealer_hand.value) do
-  #    play(table, :dealer, &Blackjack.Dealer.Blackjack.Avatar.hit_or_stand/3)
-  #  end
-
-  def play(%__MODULE__{shoe: shoe, dealer: dealer_hand} = table, :dealer, dealer_request)
-      when is_integer(dealer_hand.value) do
-    # otherwise bust or blackjack -> stop # TODO : proper hand module function
+  def play(%__MODULE__{dealer: dealer_hand} = table, :dealer, dealer_request) do
     full_table =
-      case dealer_request.(dealer_hand, dealer_hand) do
-        :hit ->
-          table
-          |> deal(:dealer)
-          # recurse until :stand
-          |> play(:dealer, dealer_request)
+      if Hand.is_playable?(dealer_hand) do
+        case dealer_request.(dealer_hand, dealer_hand) do
+          :hit ->
+            table
+            |> deal(:dealer)
+            # recurse until :stand
+            |> play(:dealer, dealer_request)
 
-        _ ->
-          table
+          _ ->
+            table
+        end
+      else
+        # otherwise bust or blackjack -> stop
+        table
       end
 
     full_table |> resolve()
   end
 
-  def play(%__MODULE__{} = table, :dealer, _) do
-    table
-  end
+  def play(%__MODULE__{players: players} = table, player_id, player_request)
+      when is_map_key(players, player_id) do
+    full_table =
+      if Hand.is_playable?(players[player_id]) do
+        # TODO :  a more clean/formal way to requesting from player,
+        #    and player confirming action (to track for replays...)
+        case player_request.(players[player_id], table.dealer) do
+          :stand ->
+            table
 
-  #
-  #  def play(%__MODULE__{players: players} = table, player_id) do
-  #    if is_nil(players[player_id]) or is_atom(players[player_id].value) do
-  #      # Ref from wikipedia:
-  #      # A hand can "hit" as often as desired until the total is 21 or more.
-  #      # Players must stand on a total of 21.
-  #      table
-  #    else
-  #      play(table, player_id, &Blackjack.Avatar.IEx.hit_or_stand/2)
-  #    end
-  #  end
-
-  def play(%__MODULE__{players: players} = table, player_id, player_request) do
-    if is_nil(players[player_id]) or is_atom(players[player_id].value) do
-      # Ref from wikipedia:
-      # A hand can "hit" as often as desired until the total is 21 or more.
-      # Players must stand on a total of 21.
-      table
-    else
-      # TODO :  a more clean/formal way to requesting from player,
-      #    and player confirming action (to track for replays...)
-      case player_request.(players[player_id], table.dealer) do
-        :stand ->
-          table
-
-        :hit ->
-          table
-          |> deal(player_id)
-          |> play(player_id, player_request)
+          :hit ->
+            table
+            |> deal(player_id)
+            |> play(player_id, player_request)
+        end
+      else
+        table
       end
-    end
+
+    full_table |> resolve(player_id)
   end
 
   # TODO : resolve should be same as play...
@@ -166,18 +146,12 @@ defmodule Blackjack.Table do
   Decides if a player :win or :lose
   """
 
-  def resolve(%__MODULE__{result: :void} = table) do
-    table
-  end
-
   def resolve(%__MODULE__{result: :void} = table, _) do
     table
   end
 
   def resolve(%__MODULE__{players: players, dealer: dealer_hand, result: result} = table, player)
-      when is_atom(dealer_hand) or
-             (dealer_hand.value >= 17 and
-                is_atom(player) and is_list(result)) do
+      when is_map_key(players, player) and (is_atom(dealer_hand) or dealer_hand.value >= 17) do
     # TODO : handle "push" when both are equal...
     hand_comp = Hand.compare(players[player], table.dealer)
     # TODO : review actual cases (with tests) here
@@ -186,6 +160,20 @@ defmodule Blackjack.Table do
     else
       %{table | result: result |> Keyword.put(player, :lose)}
     end
+  end
+
+  def resolve(%__MODULE__{players: players, result: result} = table, player)
+      when is_map_key(players, player) do
+    case players[player].value do
+      :bust -> %{table | result: result |> Keyword.put(player, :lose)}
+      # blackjack must wait for all players to play and dealer to draw his last card
+      :blackjack -> table
+      _ -> table
+    end
+  end
+
+  def resolve(%__MODULE__{result: :void} = table) do
+    table
   end
 
   def resolve(%__MODULE__{players: players, dealer: dealer_hand} = table)

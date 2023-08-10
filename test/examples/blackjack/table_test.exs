@@ -59,15 +59,6 @@ defmodule Blackjack.TableTest do
   end
 
   describe "play/3" do
-    test "doesnt do anything if the player has no cards" do
-      table = Table.new(Card.deck())
-
-      # Currently test pass even if :bust or :blackjack
-      same_table = Table.play(table, :alice, nil)
-
-      assert same_table == table
-    end
-
     test "doesnt change player hand if hit and shoe is empty, and mark table result as void" do
       table = Table.new(~C[1 2 3]h) |> Table.deal([:bob, :dealer, :bob])
 
@@ -114,10 +105,8 @@ defmodule Blackjack.TableTest do
 
       assert final_table.players[:charlie].value >= same_table.players[:charlie].value
     end
-  end
 
-  describe "resolve/1" do
-    setup do
+    test "decide :win or :lose for each player, after dealer plays" do
       table =
         Table.new(Card.deck())
         |> Table.deal([:alice, :bob, :charlie, :dealer, :alice, :bob, :charlie])
@@ -128,18 +117,31 @@ defmodule Blackjack.TableTest do
           Blackjack.Avatar.hit_or_stand(%Blackjack.Dealer{}, hv, dh)
         end)
 
-      %{table: table}
-    end
-
-    test "decide :win or :lose for each player", %{table: table} do
       assert table.dealer.value >= 17
 
-      %Table{result: result} = Table.resolve(table)
+      %Table{result: result} = table
 
       assert length(result) == 3
       assert result[:alice] in [:win, :lose]
       assert result[:bob] in [:win, :lose]
       assert result[:charlie] in [:win, :lose]
     end
+  end
+
+  describe "resolve/2" do
+    @tag :current
+    test "decide :lose early if a player busts" do
+      table =
+        Table.new(~C[9 10 J]h)
+        |> Table.deal([:bob, :bob, :bob])
+        |> Table.resolve(:bob)
+
+      assert table.players[:bob] == Hand.new() |> Hand.add_card(~C[9 10 J]h)
+      assert table.players[:bob].value == :bust
+      assert table.result == [bob: :lose]
+    end
+  end
+
+  describe "resolve/1" do
   end
 end

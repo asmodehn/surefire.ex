@@ -43,7 +43,7 @@ defmodule Blackjack.Hand do
 
     cond do
       hand_value > 21 -> :bust
-      hand_value == 21 -> :blackjack
+      hand_value == 21 and length(cards) == 2 -> :blackjack
       true -> hand_value
     end
   end
@@ -95,6 +95,15 @@ defmodule Blackjack.Hand do
       hr.value == :bust -> :gt
       true -> raise %RuntimeError{message: "Unhandled compare/2 case: #{hl} ~ #{hr}"}
     end
+  end
+
+  # Note : this is different for the dealer <= 17 (soft/hard rules, etc.) ???
+  # TODO : smthg better...
+  def is_playable?(%__MODULE__{} = h) do
+    # Ref from wikipedia:
+    # A hand can "hit" as often as desired until the total is 21 or more.
+    # Players must stand on a total of 21.
+    is_integer(h.value) and h.value < 21
   end
 
   defimpl Inspect do

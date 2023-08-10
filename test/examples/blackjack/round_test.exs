@@ -80,16 +80,6 @@ defmodule Blackjack.RoundTest do
   end
 
   describe "play/2" do
-    test "a player without any card cannot play" do
-      game =
-        Round.new(~C[5 8 K]h)
-        |> Round.bet(Avatar.Random.new(:bob), 45)
-
-      updated_game = game |> Round.play(:bob)
-
-      assert updated_game == game
-    end
-
     test "calls player_request with player hand and dealer hand" do
       bob_request = fn
         ph, dh -> raise "player_hand: #{ph}, dealer_hand: #{dh}"
@@ -149,22 +139,67 @@ defmodule Blackjack.RoundTest do
     end
   end
 
-  @tag skip: true
   describe "one-player game" do
-    test "can go on until the end" do
+    @tag :current
+    test "can get blackjack on deal and win" do
       game =
-        Round.new(~C[]h ++ ~C[]s ++ ~C[]c ++ ~C[]d)
-        |> Round.bet(Avatar.Random.new(:alice), 12)
+        Round.new(~C[J]h ++ ~C[8]s ++ ~C[A]c ++ ~C[8 K]d)
+        |> Round.bet(Avatar.Custom.new(:alice, fn _ph, _dh -> :stand end), 12)
         |> Round.deal()
 
-      # TODO : assert hands
+      assert game.table.players[:alice] == Hand.new() |> Hand.add_card(~C[J]h ++ ~C[A]c)
+      assert game.table.dealer == Hand.new() |> Hand.add_card(~C[8]s)
 
-      game
-      |> Round.play(fn _ph, _dh -> :stand end)
-      |> IO.inspect()
-      |> Round.resolve()
-      |> IO.inspect()
+      # TODO : win should already be decided before play is called !
+      {finished_game, events} =
+        game
+        |> Round.play()
+        |> Round.resolve()
+
+      #      |> IO.inspect()
+
+      assert finished_game.table.dealer == Hand.new() |> Hand.add_card(~C[8]s ++ ~C[8 K]d)
+
+      assert finished_game.table.result == [alice: :win]
+
+      assert %Blackjack.Event.PlayerExit{id: :alice, gain: 24} in events
     end
+
+    @tag :current
+    test "can get blackjack on deal and lose (WIP should tie)" do
+      game =
+        Round.new(~C[J]h ++ ~C[A]s ++ ~C[A]c ++ ~C[Q]d)
+        |> Round.bet(Avatar.Custom.new(:alice, fn _ph, _dh -> :stand end), 12)
+        |> Round.deal()
+
+      assert game.table.players[:alice] == Hand.new() |> Hand.add_card(~C[J]h ++ ~C[A]c)
+      assert game.table.dealer == Hand.new() |> Hand.add_card(~C[A]s)
+
+      # TODO : win should already be decided before play is called !
+      {finished_game, events} =
+        game
+        |> Round.play()
+        |> Round.resolve()
+
+      #      |> IO.inspect()
+
+      assert finished_game.table.dealer == Hand.new() |> Hand.add_card(~C[A]s ++ ~C[Q]d)
+      # TODO : should be tie / push / standoff
+      assert finished_game.table.result == [alice: :lose]
+
+      assert %Blackjack.Event.PlayerExit{id: :alice, gain: 0} in events
+    end
+
+    # TODO
+    #    test "can hit and win"
+    #
+    #    test "can hit and bust"
+    #
+    #    test "can hit and lose"
+    #
+    #    test "can stand and lose"
+    #
+    #    test "can stand and win"
 
     # TODO : more one-player game to test all possible situations...
   end
