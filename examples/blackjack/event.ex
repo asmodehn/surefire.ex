@@ -16,21 +16,19 @@ defmodule Blackjack.Event do
     defstruct id: nil, gain: 0
   end
 
-  alias Blackjack.Player
-
-  def player_enter(%Player{} = player, bet) do
+  def player_enter(player, bet) do
     %PlayerEnter{id: Surefire.Player.id(player), bet: bet}
   end
 
-  def player_out(%Player{} = player, prompt, choice \\ %{}) do
+  def player_out(player, prompt, choice \\ %{}) do
     %PlayerOut{id: Surefire.Player.id(player), prompt: prompt, choice: choice}
   end
 
-  def player_in(%Player{} = player, action) do
+  def player_in(player, action) do
     %PlayerIn{id: Surefire.Player.id(player), action: action}
   end
 
-  def player_exit(%Player{} = player, gain) do
+  def player_exit(player, gain) do
     %PlayerExit{id: Surefire.Player.id(player), gain: gain}
   end
 end

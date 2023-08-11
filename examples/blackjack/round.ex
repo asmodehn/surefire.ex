@@ -19,10 +19,11 @@ defmodule Blackjack.Round do
   alias Blackjack.{Bets, Table, Avatar}
   #  alias Blackjack.Event.{PlayerExit}
 
-  @derive {Inspect, only: [:bets, :table]}
+  @derive {Inspect, only: [:bets, :avatars, :table]}
 
   # TODO : bets part of avatar ? => would make sense as part of surefire...
-  defstruct bets: %Bets{},
+  defstruct id: "the_roundWIP",
+            bets: %Bets{},
             avatars: %{},
             # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
             table: %Table{},
@@ -78,10 +79,7 @@ defmodule Blackjack.Round do
   def play(%__MODULE__{} = game, avatar_ids)
       when is_list(avatar_ids) do
     for a_id <- avatar_ids, reduce: game do
-      game ->
-        IO.inspect("#{a_id} turn...")
-
-        game |> play(a_id)
+      game -> game |> play(a_id)
     end
   end
 
@@ -113,7 +111,7 @@ defmodule Blackjack.Round do
   """
   def play(%__MODULE__{avatars: avatars} = game) do
     game
-    # TODO : dealer play here instead of in resolve ??
+    # TODO : dealer play here instead of in resolve !!
     |> play(Map.keys(avatars))
 
     # TODO : maybe better to do a map() on values directly ??
@@ -123,7 +121,7 @@ defmodule Blackjack.Round do
   @doc ~s"""
     To the end, where the dealer get cards until >17
   """
-  def resolve(%__MODULE__{table: table} = g) do
+  def resolve(%__MODULE__{table: table, avatars: avatars} = g) do
     updated_table =
       table
       |> Table.play(:dealer, fn
@@ -134,39 +132,42 @@ defmodule Blackjack.Round do
     if updated_table.result == :void do
       {%{g | table: updated_table}, [:game_is_void]}
     else
-      updated_table.result |> IO.inspect()
-
       for {p, wl} <- updated_table.result, reduce: {%{g | table: updated_table}, []} do
         {acc, evt} ->
           case wl do
             :win ->
-              {updated_acc, generated_evts} = player_win(acc, p)
+              {updated_acc, generated_evts} = player_win(acc, avatars[p])
               {updated_acc, evt ++ generated_evts}
 
             :lose ->
-              {updated_acc, generated_evts} = player_lose(acc, p)
+              {updated_acc, generated_evts} = player_lose(acc, avatars[p])
               {updated_acc, evt ++ generated_evts}
           end
       end
     end
   end
 
-  def player_win(%__MODULE__{bets: bets} = game, avatar)
-      when is_atom(avatar) do
-    {player_bet, bets} = bets |> Bets.player_end(avatar)
+  def player_win(%__MODULE__{bets: bets} = game, avatar) do
+    {player_bet, bets} = bets |> Bets.player_end(Blackjack.Avatar.id(avatar))
 
     {
       %{game | bets: bets},
-      [%Blackjack.Event.PlayerExit{id: avatar, gain: player_bet * 2}]
+      [%Blackjack.Event.PlayerExit{id: Blackjack.Avatar.player_id(avatar), gain: player_bet * 2}]
     }
   end
 
-  def player_lose(%__MODULE__{bets: bets} = table, avatar) when is_atom(avatar) do
-    {_player_bet, bets} = bets |> Bets.player_end(avatar)
+  def player_lose(%__MODULE__{bets: bets} = table, avatar) do
+    {_player_bet, bets} = bets |> Bets.player_end(Blackjack.Avatar.id(avatar))
 
     {
       %{table | bets: bets},
-      [%Blackjack.Event.PlayerExit{id: avatar, gain: 0}]
+      [%Blackjack.Event.PlayerExit{id: Blackjack.Avatar.player_id(avatar), gain: 0}]
     }
+  end
+
+  defimpl Surefire.Round do
+    def id(%Blackjack.Round{} = round) do
+      round.id
+    end
   end
 end

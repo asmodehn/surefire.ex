@@ -6,6 +6,8 @@ defprotocol Surefire.Player do
   def get(player, gain)
   # or a way to reduce avatars into player ??
 
+  def avatar(player, round)
+
   def bet(player, bet)
 
   def avatar(player, game_id)
