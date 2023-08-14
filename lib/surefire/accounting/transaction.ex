@@ -78,6 +78,10 @@ defmodule Surefire.Accounting.Transaction do
     end)
   end
 
+  @doc ~s"""
+  Adds the current date to the transaction. This effectively locks the transaction,
+  and prevents adding more debits or credits.
+  """
   def with_current_date(%__MODULE__{} = transact, date_func \\ &DateTime.utc_now/0) do
     %{transact | date: date_func.()}
   end
