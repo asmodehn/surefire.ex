@@ -39,6 +39,7 @@ defmodule Surefire.MixProject do
       {:ex_prompt, "~> 0.1.5"},
       {:exqlite, "~> 0.13"},
       {:gen_state_machine, "3.0.0"},
+      {:ulid, git: "https://github.com/asmodehn/ulid", branch: "master"},
 
       # dev tools
       {:committee, "~> 1.0.0", only: :dev, runtime: false},
