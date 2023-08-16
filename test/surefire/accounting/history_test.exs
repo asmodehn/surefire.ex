@@ -1,14 +1,17 @@
 defmodule Surefire.Accounting.HistoryTest do
   use ExUnit.Case, async: true
+  use ExUnitProperties
 
   alias Surefire.Accounting.{Transaction, History}
 
-  describe "new_transaction_id/0" do
-    test "generate a new, always unique, id" do
-      uniq_ids = Stream.repeatedly(&History.new_transaction_id/0)
-      # TODO : play with random, to test more deeply ?
-      assert length(uniq_ids |> Enum.take(512)) ==
-               length(uniq_ids |> Stream.uniq() |> Enum.take(512))
+  describe "new_transaction_id/1" do
+    test "generate ulid, increasing monotonically" do
+      ulid_list =
+        History.new()
+        |> Stream.unfold(&History.new_transaction_id/1)
+        |> Enum.take(5)
+
+      assert ulid_list == ulid_list |> Enum.sort(&</2)
     end
   end
 
@@ -41,7 +44,7 @@ defmodule Surefire.Accounting.HistoryTest do
 
       assert not Transaction.verify_balanced(t)
 
-      {:error, :unbalanced_transaction} = History.commit(%History{}, t, "transac_id")
+      {:error, :unbalanced_transaction} = History.commit(%History{}, "transac_id", t)
     end
 
     test "errors if an existing key is passed in" do
@@ -52,7 +55,7 @@ defmodule Surefire.Accounting.HistoryTest do
 
       assert Transaction.verify_balanced(t)
 
-      assert %History{"transac_id" => "fake_transaction"}
+      assert %History{transactions: %{"transac_id" => Transaction.build("existing transaction")}}
              |> History.commit("transac_id", t) ==
                {:error, :existing_transaction_id}
     end

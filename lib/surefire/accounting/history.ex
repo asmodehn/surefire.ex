@@ -9,17 +9,28 @@ defmodule Surefire.Accounting.History do
 
   alias Surefire.Accounting.Transaction
 
-  defstruct transactions: %{}
+  defstruct id_generator: nil,
+            transactions: %{}
 
   @type t :: %__MODULE__{
+          id_generator: any,
           transactions: %{String.t() => Transaction.t()}
         }
 
-  @spec new_transaction_id() :: String.t()
-  def new_transaction_id() do
-    :ulid.generate()
-    # TODO : might not be monotonic (but very likely unique...)
+  def new() do
+    %{%__MODULE__{} | id_generator: :ulid.new()}
+  end
+
+  @spec new_transaction_id(t()) :: {String.t(), t()}
+  def new_transaction_id(%__MODULE__{id_generator: id_gen} = history) do
+    {next_gen, ulid} = :ulid.generate(id_gen)
+    {ulid, %{history | id_generator: next_gen}}
+    # CAREFUL: might not be monotonic because system_time might not be (but very likely unique...)
     # => BUG hiding in there...
+    # TODO: replace system_time by monotonous_time
+    # => Pb: this makes it dependent on the node where it is generated -> not cross-node comparable
+    # => Build an process interface around, maybe similar to https://github.com/jur0/eid
+    #   OR modify/extend the content of the id as in https://github.com/fogfish/uid or https://github.com/okeuday/uuid
   end
 
   @spec commit(t(), String.t(), Transaction.t()) :: {:ok, t()} | {:error, any()}
@@ -30,7 +41,7 @@ defmodule Surefire.Accounting.History do
   end
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: nil} = transact) do
-    commit(history, transact |> Transaction.with_current_date(), id)
+    commit(history, id, transact |> Transaction.with_current_date())
   end
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
