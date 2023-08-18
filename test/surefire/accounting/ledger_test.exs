@@ -31,7 +31,7 @@ defmodule Surefire.Accounting.LedgerTest do
 
   describe "new/2" do
     test "creates a new ledger, with opening debit and credits balance" do
-      ledger = Ledger.new(42, 51)
+      ledger = Ledger.new(:fake_account_id, 42, 51)
       assert ledger.balance == %Ledger.Balance{debits: 42, credits: 51}
     end
   end
@@ -65,5 +65,8 @@ defmodule Surefire.Accounting.LedgerTest do
 
       assert_raise(FunctionClauseError, fn -> %Ledger{} |> Ledger.append(test_entry) end)
     end
+  end
+
+  describe "reflect/2" do
   end
 end

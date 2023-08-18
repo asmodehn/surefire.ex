@@ -6,7 +6,7 @@ defmodule Surefire.Accounting.Transaction do
     It is the building block of an `Account`.
     """
 
-    @derive {Inspect, only: [:date, :description, :debit, :credit]}
+    @derive {Inspect, except: [:account]}
     defstruct transaction_id: nil,
               account: nil,
               date: nil,
@@ -24,8 +24,6 @@ defmodule Surefire.Accounting.Transaction do
             debit: integer,
             credit: integer
           }
-
-    # TODO : String.Char for nice display ?
   end
 
   @moduledoc ~s"""

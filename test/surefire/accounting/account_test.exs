@@ -10,7 +10,8 @@ defmodule Surefire.Accounting.AccountTest do
       assert Account.new_debit(:debit_account, "test debit account") == %Account{
                id: :debit_account,
                name: "test debit account",
-               type: :debit
+               type: :debit,
+               ledger: Ledger.new(:debit_account)
              }
     end
   end
@@ -42,7 +43,8 @@ defmodule Surefire.Accounting.AccountTest do
       assert Account.new_credit(:credit_account, "test credit account") == %Account{
                id: :credit_account,
                name: "test credit account",
-               type: :credit
+               type: :credit,
+               ledger: Ledger.new(:credit_account)
              }
     end
   end

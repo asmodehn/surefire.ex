@@ -6,7 +6,6 @@ defmodule Surefire.Accounting.Account do
 
   alias Surefire.Accounting.Ledger
   alias Surefire.Accounting.Transaction
-  alias Surefire.Accounting.History
 
   @derive {Inspect, only: [:name, :ledger]}
   defstruct id: nil,
@@ -30,8 +29,8 @@ defmodule Surefire.Accounting.Account do
       type: :debit,
       ledger:
         cond do
-          opening >= 0 -> Ledger.new(opening, 0)
-          opening < 0 -> Ledger.new(0, -opening)
+          opening >= 0 -> Ledger.new(id, opening, 0)
+          opening < 0 -> Ledger.new(id, 0, -opening)
         end
     }
   end
@@ -43,12 +42,13 @@ defmodule Surefire.Accounting.Account do
       type: :credit,
       ledger:
         cond do
-          opening >= 0 -> Ledger.new(0, opening)
-          opening < 0 -> Ledger.new(-opening, 0)
+          opening >= 0 -> Ledger.new(id, 0, opening)
+          opening < 0 -> Ledger.new(id, -opening, 0)
         end
     }
   end
 
+  # TODO :is debit/credit type only important for balance ? or really useful as part of data ??
   def balance(%__MODULE__{type: :debit, ledger: %Ledger{balance: balance}}) do
     balance.debits - balance.credits
   end
@@ -65,30 +65,24 @@ defmodule Surefire.Accounting.Account do
   Otherwise, the transaction is simply ignored.
   """
   def reflect(
-        %__MODULE__{id: account_id, last_seen_transaction: last_transact} = account,
+        %__MODULE__{last_seen_transaction: last_transact, ledger: ledger} = account,
         %Transaction{} = transaction,
         transaction_id
       )
+      # TODO should be checking entry account_id as well here !
       when last_transact < transaction_id do
     updated_ledger =
-      transaction
-      |> Transaction.as_entries(transaction_id)
-      # TODO : filter transaction already added -> how ??
-      |> Enum.filter(fn e -> e.account == account_id end)
-      |> Enum.reduce(account.ledger, fn e, l -> Ledger.append(l, e) end)
-
-    # TODO : use the ledger collectable interface to put transaction "into" it...
+      ledger |> Ledger.reflect(transaction |> Transaction.as_entries(transaction_id))
 
     %{account | ledger: updated_ledger, last_seen_transaction: transaction_id}
   end
 
+  # TODO : should be included in caller on transaction history instead of here (just like reflect in ledger).
   def reflect(
-        %__MODULE__{id: account_id, last_seen_transaction: last_transact} = account,
-        %Transaction{} = transaction,
-        transaction_id
+        %__MODULE__{} = account,
+        %Transaction{},
+        _transaction_id
       ) do
     account
   end
-
-  #  TODO:  Collectable to get Transactions from history ??
 end
