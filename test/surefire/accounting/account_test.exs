@@ -1,8 +1,32 @@
+defmodule Surefire.Accounting.Account.BalanceTest do
+  use ExUnit.Case, async: true
+
+  alias Surefire.Accounting.Account.Balance
+  alias Surefire.Accounting.Transaction
+
+  describe "update/2" do
+    test "updates a balance debit and credit values" do
+      assert %Balance{}
+             |> Balance.update(%Transaction.Entry{
+               debit: 42,
+               credit: 51
+             }) ==
+               %Balance{debits: 42, credits: 51}
+
+      assert %Balance{debits: 33, credits: 33}
+             |> Balance.update(%Transaction.Entry{
+               debit: 42,
+               credit: 51
+             }) ==
+               %Balance{debits: 33 + 42, credits: 33 + 51}
+    end
+  end
+end
+
 defmodule Surefire.Accounting.AccountTest do
   use ExUnit.Case, async: true
 
   alias Surefire.Accounting.Account
-  alias Surefire.Accounting.Ledger
   alias Surefire.Accounting.Transaction
 
   describe "new_debit/1" do
@@ -10,8 +34,7 @@ defmodule Surefire.Accounting.AccountTest do
       assert Account.new_debit(:debit_account, "test debit account") == %Account{
                id: :debit_account,
                name: "test debit account",
-               type: :debit,
-               ledger: Ledger.new(:debit_account)
+               type: :debit
              }
     end
   end
@@ -22,19 +45,19 @@ defmodule Surefire.Accounting.AccountTest do
         id: :debit_account,
         name: "test debit account",
         type: :debit,
-        ledger: debit_ledger
+        balance: balance
       } = Account.new_debit(:debit_account, "test debit account", 42)
 
-      assert debit_ledger.balance == %Ledger.Balance{debits: 42, credits: 0}
+      assert balance == %Account.Balance{debits: 42, credits: 0}
 
       %Account{
         id: :debit_account,
         name: "test debit account",
         type: :debit,
-        ledger: credit_ledger
+        balance: balance
       } = Account.new_debit(:debit_account, "test debit account", -51)
 
-      assert credit_ledger.balance == %Ledger.Balance{debits: 0, credits: 51}
+      assert balance == %Account.Balance{debits: 0, credits: 51}
     end
   end
 
@@ -43,8 +66,7 @@ defmodule Surefire.Accounting.AccountTest do
       assert Account.new_credit(:credit_account, "test credit account") == %Account{
                id: :credit_account,
                name: "test credit account",
-               type: :credit,
-               ledger: Ledger.new(:credit_account)
+               type: :credit
              }
     end
   end
@@ -55,19 +77,19 @@ defmodule Surefire.Accounting.AccountTest do
         id: :credit_account,
         name: "test credit account",
         type: :credit,
-        ledger: credit_ledger
+      balance: balance
       } = Account.new_credit(:credit_account, "test credit account", 42)
 
-      assert credit_ledger.balance == %Ledger.Balance{debits: 0, credits: 42}
+      assert balance == %Account.Balance{debits: 0, credits: 42}
 
       %Account{
         id: :credit_account,
         name: "test credit account",
         type: :credit,
-        ledger: debit_ledger
+      balance: balance
       } = Account.new_credit(:credit_account, "test credit account", -51)
 
-      assert debit_ledger.balance == %Ledger.Balance{debits: 51, credits: 0}
+      assert balance == %Account.Balance{debits: 51, credits: 0}
     end
   end
 
@@ -80,20 +102,52 @@ defmodule Surefire.Accounting.AccountTest do
       assert Account.balance(cacc) == 33
     end
 
-    test "returns the ledger balance as a relative integer, depending on the type of the account" do
-      l = %Ledger{balance: %Ledger.Balance{debits: 42, credits: 51}}
+    test "returns the balance as a relative integer, depending on the type of the account" do
 
       dacc = Account.new_debit(:test_debit, "test debit account", 0)
 
-      assert %{dacc | ledger: l}
+      assert %{dacc | balance: %Account.Balance{debits: 42, credits: 51}}
              |> Account.balance() == 42 - 51
 
       cacc = Account.new_credit(:test_credit, "test credit account", 0)
 
-      assert %{cacc | ledger: l}
+      assert %{cacc |balance: %Account.Balance{debits: 42, credits: 51}}
              |> Account.balance() == 51 - 42
     end
   end
+
+
+  describe "append/2" do
+    test "appends an entry to the ledger, and updates the balance" do
+      test_entry = %Transaction.Entry{
+        transaction_id: "transac_id",
+        account: nil,
+        date: nil,
+        description: "",
+        debit: 42,
+        credit: 51
+      }
+
+      assert %Account{} |> Account.append(test_entry) == %Account{
+               entries: [test_entry],
+               balance: %Account.Balance{debits: 42, credits: 51}
+             }
+    end
+
+    test "errors if the entry doesnt belong to a committed transaction" do
+      test_entry = %Transaction.Entry{
+        transaction_id: nil,
+        account: nil,
+        date: nil,
+        description: "",
+        debit: 0,
+        credit: 0
+      }
+
+      assert_raise(FunctionClauseError, fn -> %Account{} |> Account.append(test_entry) end)
+    end
+  end
+
 
   describe "reflect/3" do
     setup do
@@ -116,10 +170,10 @@ defmodule Surefire.Accounting.AccountTest do
         id: :test_debit,
         name: "test debit account",
         type: :debit,
-        ledger: ledger
+        balance: balance
       } = debit_account |> Account.reflect(test_transact, "fakeID")
 
-      assert ledger.balance == %Ledger.Balance{debits: 42, credits: 0}
+      assert balance == %Account.Balance{debits: 42, credits: 0}
     end
 
     test "if credit on the debit account, add matching entry to ledger and update its balance",
@@ -135,10 +189,10 @@ defmodule Surefire.Accounting.AccountTest do
         id: :test_debit,
         name: "test debit account",
         type: :debit,
-        ledger: ledger
+        balance: balance
       } = debit_account |> Account.reflect(test_transact, "fakeID")
 
-      assert ledger.balance == %Ledger.Balance{debits: 0, credits: 42}
+      assert balance == %Account.Balance{debits: 0, credits: 42}
     end
 
     test "if debit on the credit account, add matching entry to ledger and update its balance",
@@ -154,10 +208,10 @@ defmodule Surefire.Accounting.AccountTest do
         id: :test_credit,
         name: "test credit account",
         type: :credit,
-        ledger: ledger
+        balance: balance
       } = credit_account |> Account.reflect(test_transact, "fakeID")
 
-      assert ledger.balance == %Ledger.Balance{debits: 42, credits: 0}
+      assert balance == %Account.Balance{debits: 42, credits: 0}
     end
 
     test "if credit on the credit account, add matching entry to ledger and update its balance",
@@ -173,13 +227,13 @@ defmodule Surefire.Accounting.AccountTest do
         id: :test_credit,
         name: "test credit account",
         type: :credit,
-        ledger: ledger
+        balance: balance
       } = credit_account |> Account.reflect(test_transact, "fakeID")
 
-      assert ledger.balance == %Ledger.Balance{debits: 0, credits: 42}
+      assert balance == %Account.Balance{debits: 0, credits: 42}
     end
 
-    test "if transaction_id > last_transaction_id, new transaction is ignored",
+    test "if transaction_id >= last_transaction_id, error is triggered",
          %{debit_account: debit_account} do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
@@ -197,18 +251,12 @@ defmodule Surefire.Accounting.AccountTest do
 
       assert "absentID" <= "fakeID"
 
-      %Account{
-        id: :test_debit,
-        name: "test debit account",
-        type: :debit,
-        ledger: ledger
-      } =
+assert_raise(FunctionClauseError, fn ->
         debit_account
         |> Account.reflect(test_transact, "fakeID")
         |> Account.reflect(ignored_transact, "absentID")
+ end)
 
-      # the debit on :test_debit of 51 has been ignored.
-      assert ledger.balance == %Ledger.Balance{debits: 42, credits: 0}
     end
   end
 end

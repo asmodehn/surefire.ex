@@ -76,6 +76,12 @@ defmodule Surefire.Accounting.Transaction do
     end)
   end
 
+  # TODO : multi level transactions :
+  # - just add more entries(based on accounts)
+  # - transaction still balanced, at multiple levels...
+  # - transaction itself can be multilevel (if account_ids can be multilevels ?)...
+
+
   @doc ~s"""
   Adds the current date to the transaction. This effectively locks the transaction,
   and prevents adding more debits or credits.
