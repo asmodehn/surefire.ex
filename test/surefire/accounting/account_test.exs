@@ -77,7 +77,7 @@ defmodule Surefire.Accounting.AccountTest do
         id: :credit_account,
         name: "test credit account",
         type: :credit,
-      balance: balance
+        balance: balance
       } = Account.new_credit(:credit_account, "test credit account", 42)
 
       assert balance == %Account.Balance{debits: 0, credits: 42}
@@ -86,7 +86,7 @@ defmodule Surefire.Accounting.AccountTest do
         id: :credit_account,
         name: "test credit account",
         type: :credit,
-      balance: balance
+        balance: balance
       } = Account.new_credit(:credit_account, "test credit account", -51)
 
       assert balance == %Account.Balance{debits: 51, credits: 0}
@@ -103,7 +103,6 @@ defmodule Surefire.Accounting.AccountTest do
     end
 
     test "returns the balance as a relative integer, depending on the type of the account" do
-
       dacc = Account.new_debit(:test_debit, "test debit account", 0)
 
       assert %{dacc | balance: %Account.Balance{debits: 42, credits: 51}}
@@ -111,11 +110,10 @@ defmodule Surefire.Accounting.AccountTest do
 
       cacc = Account.new_credit(:test_credit, "test credit account", 0)
 
-      assert %{cacc |balance: %Account.Balance{debits: 42, credits: 51}}
+      assert %{cacc | balance: %Account.Balance{debits: 42, credits: 51}}
              |> Account.balance() == 51 - 42
     end
   end
-
 
   describe "append/2" do
     test "appends an entry to the ledger, and updates the balance" do
@@ -147,7 +145,6 @@ defmodule Surefire.Accounting.AccountTest do
       assert_raise(FunctionClauseError, fn -> %Account{} |> Account.append(test_entry) end)
     end
   end
-
 
   describe "reflect/3" do
     setup do
@@ -251,12 +248,11 @@ defmodule Surefire.Accounting.AccountTest do
 
       assert "absentID" <= "fakeID"
 
-assert_raise(FunctionClauseError, fn ->
+      assert_raise(FunctionClauseError, fn ->
         debit_account
         |> Account.reflect(test_transact, "fakeID")
         |> Account.reflect(ignored_transact, "absentID")
- end)
-
+      end)
     end
   end
 end

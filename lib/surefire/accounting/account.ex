@@ -34,7 +34,7 @@ defmodule Surefire.Accounting.Account do
             type: :debit,
             entries: [],
             balance: %Balance{},
-  # TOOD : maybe we dont need this ??
+            # TOOD : maybe we dont need this ??
             last_seen_transaction: nil
 
   @type t :: %__MODULE__{
@@ -77,8 +77,6 @@ defmodule Surefire.Accounting.Account do
   # - Liability (closing -> - return to parent) & Revenue (closing -> stop getting it) (credit)
   # Pb : here or at higher lever of abstraction (with player / avatar) ??
 
-
-
   # TODO :is debit/credit type only important for balance ? or really useful as part of data ??
   def balance(%__MODULE__{type: :debit, balance: balance}) do
     balance.debits - balance.credits
@@ -87,6 +85,7 @@ defmodule Surefire.Accounting.Account do
   def balance(%__MODULE__{type: :credit, balance: balance}) do
     balance.credits - balance.debits
   end
+
   @doc ~s"""
   append/2 appends an entry to the ledger, if its id exists (comes from the History).
   CAREFUL: at this level nothing guarantees:
@@ -100,7 +99,6 @@ defmodule Surefire.Accounting.Account do
       when entry.transaction_id != nil and entry_account_id == account_id do
     %{account | entries: entries ++ [entry], balance: Balance.update(balance, entry)}
   end
-
 
   # TODO : review this and put some (all?) of it in Book (expected caller)
   @doc ~s"""
@@ -116,13 +114,13 @@ defmodule Surefire.Accounting.Account do
         transaction_id
       )
       when last_transact < transaction_id do
-
     updated_account =
-      for e <- ( transaction
-                 |> Transaction.as_entries(transaction_id)
-                 |> Enum.filter(fn e ->  e.account == account.id end)
-        ), reduce: account do
-          acc ->  acc |> append(e)
+      for e <-
+            transaction
+            |> Transaction.as_entries(transaction_id)
+            |> Enum.filter(fn e -> e.account == account.id end),
+          reduce: account do
+        acc -> acc |> append(e)
       end
 
     %{updated_account | last_seen_transaction: transaction_id}
@@ -149,11 +147,11 @@ defmodule Surefire.Accounting.Account do
         Inspect.Algebra.break("\n"),
         Kernel.inspect(account.balance),
         Inspect.Algebra.break("\n"),
-#        if account.closed do
-#          "CLOSED!"
-#        else
-#          "ONGOING..."
-#        end,
+        #        if account.closed do
+        #          "CLOSED!"
+        #        else
+        #          "ONGOING..."
+        #        end,
         ">"
       ])
     end

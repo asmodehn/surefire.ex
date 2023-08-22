@@ -2,6 +2,7 @@ defmodule Surefire.Accounting.TransactionTest do
   use ExUnit.Case, async: true
 
   alias Surefire.Accounting.Transaction
+  alias Surefire.Accounting.Account
 
   describe "build/1" do
     test "creates a Transaction struct with description" do
@@ -37,33 +38,6 @@ defmodule Surefire.Accounting.TransactionTest do
     end
   end
 
-  describe "with_debits/2" do
-    test "add a list of debit entries in the list" do
-      t =
-        Transaction.build("test description")
-        |> Transaction.with_debits(test_account_a: 42, test_account_b: 51)
-
-      assert Transaction.as_entries(t, "fake_id") == [
-               %Transaction.Entry{
-                 transaction_id: "fake_id",
-                 account: :test_account_a,
-                 date: nil,
-                 description: "test description",
-                 debit: 42,
-                 credit: 0
-               },
-               %Transaction.Entry{
-                 transaction_id: "fake_id",
-                 account: :test_account_b,
-                 date: nil,
-                 description: "test description",
-                 debit: 51,
-                 credit: 0
-               }
-             ]
-    end
-  end
-
   describe "with_credit/3" do
     test "add a credit entry in the list" do
       t =
@@ -78,33 +52,6 @@ defmodule Surefire.Accounting.TransactionTest do
                  description: "test description",
                  debit: 0,
                  credit: 42
-               }
-             ]
-    end
-  end
-
-  describe "with_credits/2" do
-    test "add a list of credit entries in the list" do
-      t =
-        Transaction.build("test description")
-        |> Transaction.with_credits(test_account_a: 42, test_account_b: 51)
-
-      assert Transaction.as_entries(t, "fake_id") == [
-               %Transaction.Entry{
-                 transaction_id: "fake_id",
-                 account: :test_account_a,
-                 date: nil,
-                 description: "test description",
-                 debit: 0,
-                 credit: 42
-               },
-               %Transaction.Entry{
-                 transaction_id: "fake_id",
-                 account: :test_account_b,
-                 date: nil,
-                 description: "test description",
-                 debit: 0,
-                 credit: 51
                }
              ]
     end
@@ -147,6 +94,46 @@ defmodule Surefire.Accounting.TransactionTest do
         |> Transaction.with_credit(:test_account_b, 33)
 
       assert Transaction.verify_balanced(t) == false
+    end
+  end
+
+  describe "funding_to/2" do
+    test "creates a balanced transaction" do
+      avatar = Account.new_debit(:avatar_assets, "Avatar Assets")
+
+      t = Transaction.funding_to(42, avatar)
+
+      assert Transaction.verify_balanced(t) == true
+    end
+  end
+
+  describe "repayment_from/2" do
+    test "creates a balanced transaction" do
+      avatar = Account.new_debit(:avatar_assets, "Avatar Assets")
+
+      t = Transaction.repayment_from(42, avatar)
+
+      assert Transaction.verify_balanced(t) == true
+    end
+  end
+
+  describe "earning_at/2" do
+    test "creates a balanced transaction" do
+      avatar = Account.new_debit(:avatar_assets, "Avatar Assets")
+
+      t = Transaction.earning_at(42, avatar)
+
+      assert Transaction.verify_balanced(t) == true
+    end
+  end
+
+  describe "collect_from/2" do
+    test "creates  a balanced transaction" do
+      avatar = Account.new_debit(:avatar_assets, "Avatar Assets")
+
+      t = Transaction.collect_from(42, avatar)
+
+      assert Transaction.verify_balanced(t) == true
     end
   end
 end

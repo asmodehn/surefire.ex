@@ -36,6 +36,8 @@ defmodule Surefire.Accounting.Transaction do
   As accounting is local to a process, we don't lose anything in doing so, except performance if transaction browsing ever becomes the main usage..
   """
 
+  alias Surefire.Accounting.Account
+
   defstruct date: nil,
             description: "",
             debit: [],
@@ -57,30 +59,66 @@ defmodule Surefire.Accounting.Transaction do
     %{transact | debit: debits ++ [{account_id, amount}]}
   end
 
-  def with_debits(%__MODULE__{} = transact, acc_amounts \\ []) do
-    acc_amounts
-    |> Enum.reduce(transact, fn
-      {acc, amnt}, t -> t |> with_debit(acc, amnt)
-    end)
-  end
-
   def with_credit(%__MODULE__{credit: credits} = transact, account_id, amount)
       when is_nil(transact.date) and is_atom(account_id) and is_integer(amount) do
     %{transact | credit: credits ++ [{account_id, amount}]}
   end
 
-  def with_credits(%__MODULE__{} = transact, acc_amounts \\ []) do
-    acc_amounts
-    |> Enum.reduce(transact, fn
-      {acc, amnt}, t -> t |> with_credit(acc, amnt)
-    end)
+  # Certainly, here are the transactions with action verbs used as names:
+  #
+  # | Transaction Name            | Action Verb     | Description                                     | Debits                       | Credits                      |
+  # |-----------------------------|-----------------|-------------------------------------------------|------------------------------|------------------------------|
+  # | Sell Tokens                 | Sell            | Selling tokens (credits) to customers           | Debit: Cash (Asset)          | Credit: Token (Liability)    |
+  # | Redeem Tokens               | Redeem          | Customers redeeming tokens for services/products| Debit: Token (Liability)     | Credit: Revenue              |
+  # | Provide Token Interest     | Provide         | Providing customers extra tokens as interest    | Debit: Revenue              | Credit: Token (Liability)     |
+  # | Purchase Tokens Back        | Purchase        | Repurchasing tokens from customers for cash     | Debit: Token (Liability)     | Credit: Cash (Asset)         |
+  #
+  # I hope this provides a clearer representation of the transactions using action verbs. If you have any more questions or if there's anything else I can assist you with, feel free to let me know!
+
+  def funding_to(
+        amount,
+        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+        ledger_asset_account_id \\ :assets
+      ) do
+    build("Funding to #{acc_name}")
+    |> with_credit(ledger_asset_account_id, amount)
+    |> with_debit(avatar_asset_account.id, amount)
+  end
+
+  def repayment_from(
+        amount,
+        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+        ledger_asset_account_id \\ :assets
+      ) do
+    build("Repayment from #{acc_name}")
+    |> with_debit(ledger_asset_account_id, amount)
+    |> with_credit(avatar_asset_account.id, amount)
+  end
+
+  def earning_at(
+        amount,
+        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+        ledger_revenue_account_id \\ :revenue
+      ) do
+    build("#{acc_name} Earning record")
+    |> with_credit(ledger_revenue_account_id, amount)
+    |> with_debit(avatar_asset_account.id, amount)
+  end
+
+  def collect_from(
+        amount,
+        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+        ledger_revenue_account_id \\ :revenue
+      ) do
+    build("#{acc_name} Earning collection")
+    |> with_debit(ledger_revenue_account_id, 12)
+    |> with_credit(avatar_asset_account.id, 12)
   end
 
   # TODO : multi level transactions :
   # - just add more entries(based on accounts)
   # - transaction still balanced, at multiple levels...
   # - transaction itself can be multilevel (if account_ids can be multilevels ?)...
-
 
   @doc ~s"""
   Adds the current date to the transaction. This effectively locks the transaction,

@@ -1,7 +1,4 @@
-
-
 defmodule Surefire.Accounting.Ledger do
-
   # TODO : migrate book here, to change the semantics to "General Ledger"
 
   @moduledoc ~s"""
@@ -12,9 +9,8 @@ defmodule Surefire.Accounting.Ledger do
   alias Surefire.Accounting.Transaction
   alias Surefire.Accounting.Account.Balance
 
-#  defstruct
-#
-#  @type t :: %__MODULE__{
-#        }
-
+  #  defstruct
+  #
+  #  @type t :: %__MODULE__{
+  #        }
 end

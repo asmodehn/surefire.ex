@@ -10,47 +10,67 @@ defmodule Surefire.Accounting.Book do
   alias Surefire.Accounting.History
   alias Surefire.Accounting.Transaction
 
-
-  defstruct chart: %{},
+  defstruct assets: nil,
+            liabilities: nil,
+            revenue: nil,
+            expenses: nil,
+            externals: %{},
             last_reflected: nil
 
-
   @type t :: %__MODULE__{
-               chart: %{atom => Account.t()},
-                last_reflected: atom
-             }
+          assets: Account.t(),
+          liabilities: Account.t(),
+          revenue: Account.t(),
+          expenses: Account.t(),
+          externals: %{atom => Account.t()},
+          last_reflected: atom
+        }
 
-# TODO MAYBE ? def new(starting_assets, starting_liabilities // 0) do
-  def new() do
-    %__MODULE__{}
+  # TODO MAYBE ? def new(starting_assets, starting_liabilities // 0) do
+  def new(initial_assets \\ 0, liabilities \\ 0) do
+    %__MODULE__{
+      assets: Account.new_debit(:assets, "Assets", initial_assets),
+      liabilities: Account.new_credit(:liabilities, "Liabilities", liabilities),
+      revenue: Account.new_debit(:revenue, "Revenue"),
+      expenses: Account.new_credit(:expenses, "Expenses")
+    }
   end
 
-# TODO : ledger must have various accounts already
-# debit normal + credit normal (minimum)
-# Asset & Libability ++ Revenue & Expenses
-# usual + contra...
-
-
-  def add_account(%__MODULE__{} = book, %Account{}  = account) do
-    %{book | chart: book.chart |> Map.put(account.id, account) }
+  def add_external(%__MODULE__{} = book, %Account{} = account) do
+    %{book | externals: book.externals |> Map.put(account.id, account)}
   end
 
   # TODO : review & test this
-  def reflect(%__MODULE__{last_reflected: last_reflected} = book,
+  def reflect(
+        %__MODULE__{last_reflected: last_reflected} = book,
         %Transaction{} = transaction,
         transaction_id
       )
       when last_reflected < transaction_id do
+    updated_book =
+      for entry <- transaction |> Transaction.as_entries(transaction_id), reduce: book do
+        book ->
+          cond do
+            entry.account in [:assets, :liabilities, :revenue, :expenses] ->
+              book |> Map.update!(entry.account, &Account.append(&1, entry))
 
-      updated_chart =  for entry <- transaction |> Transaction.as_entries(transaction_id), reduce: book.chart do
-          chart -> chart
-                   |> Map.update!(entry.account,
-                fn existing_account -> Account.append(existing_account, entry) end
-                    )
-        end
+            entry.account in Map.keys(book.externals) ->
+              %{
+                book
+                | externals:
+                    book.externals
+                    |> Map.update!(entry.account, &Account.append(&1, entry))
+              }
 
-        # TODO : handle keyerror
-        %{book | chart: updated_chart, last_reflected: transaction_id}
+            true ->
+              raise RuntimeError, message: "#{entry.account} doesnt exists!"
+              # TODO : auto create the account or error ?
+              # TODO : skip the transaction or not ? (should be relying on this ledger!)
+          end
+      end
+
+    # TODO : handle keyerror
+    %{updated_book | last_reflected: transaction_id}
   end
 
   def reflect(%__MODULE__{} = book, %History{} = history) do
@@ -60,7 +80,4 @@ defmodule Surefire.Accounting.Book do
       book_acc -> reflect(book_acc, t, tid)
     end
   end
-
-
-
 end
