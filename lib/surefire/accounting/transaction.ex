@@ -64,17 +64,7 @@ defmodule Surefire.Accounting.Transaction do
     %{transact | credit: credits ++ [{account_id, amount}]}
   end
 
-  # Certainly, here are the transactions with action verbs used as names:
-  #
-  # | Transaction Name            | Action Verb     | Description                                     | Debits                       | Credits                      |
-  # |-----------------------------|-----------------|-------------------------------------------------|------------------------------|------------------------------|
-  # | Sell Tokens                 | Sell            | Selling tokens (credits) to customers           | Debit: Cash (Asset)          | Credit: Token (Liability)    |
-  # | Redeem Tokens               | Redeem          | Customers redeeming tokens for services/products| Debit: Token (Liability)     | Credit: Revenue              |
-  # | Provide Token Interest     | Provide         | Providing customers extra tokens as interest    | Debit: Revenue              | Credit: Token (Liability)     |
-  # | Purchase Tokens Back        | Purchase        | Repurchasing tokens from customers for cash     | Debit: Token (Liability)     | Credit: Cash (Asset)         |
-  #
-  # I hope this provides a clearer representation of the transactions using action verbs. If you have any more questions or if there's anything else I can assist you with, feel free to let me know!
-
+  # API attempt( from the point of view of player -> avatars
   def funding_to(
         amount,
         %Account{name: acc_name, type: :debit} = avatar_asset_account,
@@ -114,6 +104,11 @@ defmodule Surefire.Accounting.Transaction do
     |> with_debit(ledger_revenue_account_id, 12)
     |> with_credit(avatar_asset_account.id, 12)
   end
+
+  # API attempt from the point of view of the game
+  # collect_from/2 is the same except with a different process
+  # (game is another process with a ledger, but doesnt delegate to the round)
+  # TODO...
 
   # TODO : multi level transactions :
   # - just add more entries(based on accounts)

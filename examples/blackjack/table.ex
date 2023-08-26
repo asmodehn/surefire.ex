@@ -1,6 +1,8 @@
 defmodule Blackjack.Table do
   @moduledoc """
   `Blackjack.Table` implements blackjack rules for a table.
+
+
   """
   alias Blackjack.Hand
 
@@ -12,14 +14,14 @@ defmodule Blackjack.Table do
             # TODO confusing : players -> hands
             players: %{},
             # TODO : maybe only hte result of a function (resolve/1 ?)
-            result: []
+            result: %{}
 
   @type t :: %__MODULE__{
           void_under: pos_integer,
           shoe: List.t(),
           dealer: Hand.t(),
           players: Map.t(),
-          result: Keyword.t() | :void
+          result: Map.t() | :void
         }
 
   # Note: on player can play multiple  positions/boxes.
@@ -51,6 +53,15 @@ defmodule Blackjack.Table do
     %{table | result: :void}
   end
 
+  def deal(%__MODULE__{} = table, player_ids) when is_list(player_ids) do
+    player_ids
+    |> Enum.reduce(table, fn
+      p, t -> t |> deal(p)
+    end)
+
+    # TODO : check of bust or blackjack here already... ??
+  end
+
   def deal(%__MODULE__{shoe: shoe, void_under: void_under, dealer: dealer_hand} = table, :dealer)
       when length(shoe) >= void_under do
     %{
@@ -62,7 +73,7 @@ defmodule Blackjack.Table do
 
   # TODO : hand as just a list of cards (no struct) ???
   def deal(%__MODULE__{shoe: shoe, void_under: void_under, players: players} = table, player_id)
-      when is_atom(player_id) and length(shoe) >= void_under do
+      when length(shoe) >= void_under do
     %{
       table
       | shoe: shoe |> Enum.drop(1),
@@ -73,15 +84,6 @@ defmodule Blackjack.Table do
             players[player_id] |> Hand.add_card(shoe |> Enum.take(1))
           )
     }
-  end
-
-  def deal(%__MODULE__{} = table, player_ids) when is_list(player_ids) do
-    player_ids
-    |> Enum.reduce(table, fn
-      p, t -> t |> deal(p)
-    end)
-
-    # TODO : check of bust or blackjack here already... ??
   end
 
   @doc """
@@ -150,22 +152,25 @@ defmodule Blackjack.Table do
     table
   end
 
-  def resolve(%__MODULE__{players: players, dealer: dealer_hand, result: result} = table, player)
-      when is_map_key(players, player) and (is_atom(dealer_hand) or dealer_hand.value >= 17) do
+  def resolve(
+        %__MODULE__{players: avatars, dealer: dealer_hand, result: result} = table,
+        avatar_id
+      )
+      when is_map_key(avatars, avatar_id) and (is_atom(dealer_hand) or dealer_hand.value >= 17) do
     # TODO : handle "push" when both are equal...
-    hand_comp = Hand.compare(players[player], table.dealer)
+    hand_comp = Hand.compare(avatars[avatar_id], table.dealer)
     # TODO : review actual cases (with tests) here
     if hand_comp == :gt do
-      %{table | result: result |> Keyword.put(player, :win)}
+      %{table | result: result |> Map.put(avatar_id, :win)}
     else
-      %{table | result: result |> Keyword.put(player, :lose)}
+      %{table | result: result |> Map.put(avatar_id, :lose)}
     end
   end
 
   def resolve(%__MODULE__{players: players, result: result} = table, player)
       when is_map_key(players, player) do
     case players[player].value do
-      :bust -> %{table | result: result |> Keyword.put(player, :lose)}
+      :bust -> %{table | result: result |> Map.put(player, :lose)}
       # blackjack must wait for all players to play and dealer to draw his last card
       :blackjack -> table
       _ -> table

@@ -19,7 +19,7 @@ defmodule Blackjack.TableTest do
       assert clist == ~C[4]h
     end
 
-    test "can deal a card from the shoe to a player" do
+    test "can deal a card from the shoe to an atom player" do
       table =
         Table.new(~C[8 10 Q]s)
         |> Table.deal(:bob)
@@ -29,7 +29,17 @@ defmodule Blackjack.TableTest do
       assert clist == ~C[8]s
     end
 
-    test "can deal cards from the shoe to many players, including dealer" do
+    test "can deal a card from the shoe to a string player" do
+      table =
+        Table.new(~C[8 10 Q]s)
+        |> Table.deal("Bob")
+
+      assert "Bob" in Map.keys(table.players)
+      %Blackjack.Hand{cards: clist} = table.players["Bob"]
+      assert clist == ~C[8]s
+    end
+
+    test "can deal cards from the shoe to many atom players, including dealer" do
       table = Table.new(~C[3 7 J]c) |> Table.deal([:alice, :bob, :dealer])
 
       assert :alice in Map.keys(table.players)
@@ -42,6 +52,22 @@ defmodule Blackjack.TableTest do
       assert length(clist) == 1
 
       %Blackjack.Hand{cards: clist} = table.players[:bob]
+      assert length(clist) == 1
+    end
+
+    test "can deal cards from the shoe to many string players, and dealer" do
+      table = Table.new(~C[3 7 J]c) |> Table.deal(["Alice", "Bob", :dealer])
+
+      assert "Alice" in Map.keys(table.players)
+      assert "Bob" in Map.keys(table.players)
+
+      %Blackjack.Hand{cards: clist} = table.dealer
+      assert length(clist) == 1
+
+      %Blackjack.Hand{cards: clist} = table.players["Alice"]
+      assert length(clist) == 1
+
+      %Blackjack.Hand{cards: clist} = table.players["Bob"]
       assert length(clist) == 1
     end
   end
@@ -88,7 +114,7 @@ defmodule Blackjack.TableTest do
     test "allows a player to decide to stand or hit" do
       table =
         Table.new(Card.deck())
-        |> Table.deal([:alice, :bob, :charlie])
+        |> Table.deal([:alice, "Bob", :charlie])
 
       # TODO : detemrinist test with known cards in shoe.
       # Currently test pass even if :bust or :blackjack
@@ -96,9 +122,9 @@ defmodule Blackjack.TableTest do
 
       assert same_table.players[:alice].value == table.players[:alice].value
 
-      updated_table = Table.play(same_table, :bob, fn _hand_value, _dh -> :hit end)
+      updated_table = Table.play(same_table, "Bob", fn _hand_value, _dh -> :hit end)
 
-      assert updated_table.players[:bob].value >= same_table.players[:bob].value
+      assert updated_table.players["Bob"].value >= same_table.players["Bob"].value
 
       final_table =
         Table.play(updated_table, :charlie, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
@@ -109,9 +135,9 @@ defmodule Blackjack.TableTest do
     test "decide :win or :lose for each player, after dealer plays" do
       table =
         Table.new(Card.deck())
-        |> Table.deal([:alice, :bob, :charlie, :dealer, :alice, :bob, :charlie])
+        |> Table.deal([:alice, "Bob", :charlie, :dealer, :alice, "Bob", :charlie])
         |> Table.play(:alice, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
-        |> Table.play(:bob, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
+        |> Table.play("Bob", fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
         |> Table.play(:charlie, fn _hand_value, _dh -> Enum.random([:stand, :hit]) end)
         |> Table.play(:dealer, fn hv, dh ->
           Blackjack.Avatar.hit_or_stand(%Blackjack.Dealer{}, hv, dh)
@@ -121,9 +147,9 @@ defmodule Blackjack.TableTest do
 
       %Table{result: result} = table
 
-      assert length(result) == 3
+      assert length(Map.keys(result)) == 3
       assert result[:alice] in [:win, :lose]
-      assert result[:bob] in [:win, :lose]
+      assert result["Bob"] in [:win, :lose]
       assert result[:charlie] in [:win, :lose]
     end
   end
@@ -138,10 +164,7 @@ defmodule Blackjack.TableTest do
 
       assert table.players[:bob] == Hand.new() |> Hand.add_card(~C[9 10 J]h)
       assert table.players[:bob].value == :bust
-      assert table.result == [bob: :lose]
+      assert table.result == %{bob: :lose}
     end
-  end
-
-  describe "resolve/1" do
   end
 end

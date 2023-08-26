@@ -4,9 +4,10 @@ defmodule Blackjack.Round do
 
   To run a quick game:
 
-      iex> me = Blackjack.Avatar.IEx.new(:mememe)
+      iex> me = Surefire.IExPlayer.new(:mememe, 100)
+      iex> {av, me} = me |> Surefire.IExPlayer.avatar("bj_avatar", 50)
       iex> g = Blackjack.Round.new(Blackjack.Card.deck() |> Enum.shuffle())
-      iex> g = g |> Blackjack.Round.bet(me, 21)
+      iex> g = g |> Blackjack.Round.bet(av, 21)
       iex> g = g |> Blackjack.Round.deal()
       iex> g = g |> Blackjack.Round.play()
       iex> g = g |> Blackjack.Round.resolve()
@@ -21,16 +22,11 @@ defmodule Blackjack.Round do
 
   @derive {Inspect, only: [:bets, :avatars, :table]}
 
-  # TODO : bets part of avatar ? => would make sense as part of surefire...
   defstruct id: "the_roundWIP",
             bets: %Bets{},
             avatars: %{},
             # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
-            table: %Table{},
-            # This is a container for events, that have already been consumed
-            # others are still considered "in flight"
-            # TODO trace events and/or previous tables ???
-            trace: []
+            table: %Table{}
 
   # Note: one player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
@@ -40,14 +36,15 @@ defmodule Blackjack.Round do
   end
 
   # rename to "enter" or something similar ??
-  def bet(%__MODULE__{bets: bets, trace: _trace, avatars: avatars} = round, avatar, amount)
+  # TODO : Note: client should pass avatar (to parameterize game actions as desired)
+  def bet(%__MODULE__{bets: bets, avatars: avatars} = round, %Surefire.Avatar{} = avatar, amount)
       when is_number(amount) do
     # TODO : make sure avatar implements avatar behaviour...
     %{
       round
-      | bets: bets |> Bets.player_bet(Avatar.id(avatar), amount),
-        avatars: avatars |> Map.put(Avatar.id(avatar), avatar)
-        #  ,        trace: trace ++ [:event_player_bet]  # TODO : proper event struct
+      | bets: bets |> Bets.player_bet(avatar.id, amount),
+        # WIP probably dont put the whole player, just a "mergeable part of it" (avatar)
+        avatars: avatars |> Map.put(avatar.id, avatar)
     }
   end
 
@@ -83,26 +80,25 @@ defmodule Blackjack.Round do
     end
   end
 
-  def play(%__MODULE__{} = game, :dealer) do
-    game |> play(%Blackjack.Dealer{})
-  end
-
-  def play(%__MODULE__{avatars: avatars} = game, avatar_id)
-      when is_atom(avatar_id) do
-    game |> play(avatars[avatar_id])
-  end
-
-  def play(%__MODULE__{table: table} = game, avatar) do
+  def play(%__MODULE__{table: table} = game, %Surefire.Avatar{} = avatar) do
     %{
       game
       | table:
           table
           |> Table.play(
-            Avatar.id(avatar),
-            # TODO : does catpure works well with protocol dispatch ??
+            avatar.id,
             fn ph, dh -> Avatar.hit_or_stand(avatar, ph, dh) end
           )
     }
+  end
+
+  def play(%__MODULE__{} = game, :dealer) do
+    # TODO : double check this !
+    game |> play(%Blackjack.Dealer{})
+  end
+
+  def play(%__MODULE__{avatars: avatars} = game, avatar_id) do
+    game |> play(avatars[avatar_id])
   end
 
   @doc """
@@ -148,20 +144,22 @@ defmodule Blackjack.Round do
   end
 
   def player_win(%__MODULE__{bets: bets} = game, avatar) do
-    {player_bet, bets} = bets |> Bets.player_end(Blackjack.Avatar.id(avatar))
+    {player_bet, bets} = bets |> Bets.player_end(avatar.id)
 
     {
       %{game | bets: bets},
-      [%Blackjack.Event.PlayerExit{id: Blackjack.Avatar.player_id(avatar), gain: player_bet * 2}]
+      # TODO : review this as a transaction
+      [%Blackjack.Event.PlayerExit{id: avatar.player_id, gain: player_bet * 2}]
     }
   end
 
   def player_lose(%__MODULE__{bets: bets} = table, avatar) do
-    {_player_bet, bets} = bets |> Bets.player_end(Blackjack.Avatar.id(avatar))
+    {_player_bet, bets} = bets |> Bets.player_end(avatar.id)
 
     {
       %{table | bets: bets},
-      [%Blackjack.Event.PlayerExit{id: Blackjack.Avatar.player_id(avatar), gain: 0}]
+      # TODO : review this as  atransaction
+      [%Blackjack.Event.PlayerExit{id: avatar.player_id, gain: 0}]
     }
   end
 

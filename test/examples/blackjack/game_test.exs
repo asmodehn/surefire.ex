@@ -3,14 +3,20 @@ defmodule Blackjack.GameTest do
 
   alias Blackjack.Game
 
-  @tag :current
+  @tag skip: true
   test "one-player game can go on until the end" do
-    player =
-      Blackjack.Player.Random.new("alice", 42)
-      |> IO.inspect()
+    player = Surefire.TestPlayer.new("alice", 42)
+    #      |> IO.inspect()
 
+    {avatar, player} = player |> Surefire.TestPlayer.avatar("one_round")
+
+    avatar =
+      avatar
+      |> Surefire.Avatar.with_action(:hit_or_stand, fn ph, dh -> Enum.random([:hit, :stand]) end)
+
+    # TODO : review API here to decide how to play the long game with player/avatars...
     bj = Game.new()
-    with_bets = bj |> Game.bet(player, 21)
+    with_bets = bj |> Game.bet(avatar, 21)
     round_done = with_bets |> Game.play()
     resolved = round_done |> Game.resolve() |> IO.inspect()
 

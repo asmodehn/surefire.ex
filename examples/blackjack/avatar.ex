@@ -71,6 +71,41 @@ defmodule Blackjack.Avatar.IEx do
   end
 end
 
+defimpl Blackjack.Avatar, for: Surefire.Avatar do
+  # Note: player can be implemented in surefire side.
+  # BUT: Avatar depends on the game and is implemented game side...
+
+  def id(%Surefire.Avatar{} = avatar) do
+    avatar.id
+  end
+
+  def player_id(%Surefire.Avatar{} = avatar) do
+    avatar.player_id
+  end
+
+  def hit_or_stand(%Surefire.Avatar{actions: actions} = avatar, hand, dealer_hand)
+      when is_map_key(actions, :hit_or_stand) do
+    # attempt automation
+    Surefire.Avatar.call_action(avatar, :hit_or_stand, hand, dealer_hand)
+  end
+
+  def hit_or_stand(%Surefire.Avatar{} = avatar, hand, dealer_hand) do
+    # otherwise interactive
+    Surefire.Avatar.decide(
+      avatar,
+      """
+      #{id(avatar)} position at #{hand.value}.
+      Dealer at #{dealer_hand.value}.
+      What to do ?
+      """,
+      %{
+        "One more card !" => :hit,
+        "I'm good" => :stand
+      }
+    )
+  end
+end
+
 defmodule Blackjack.Avatar.Random do
   defstruct id: nil, player_id: nil
 

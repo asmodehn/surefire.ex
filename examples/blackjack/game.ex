@@ -45,8 +45,14 @@ defmodule Blackjack.Game do
     }
   end
 
-  # TODO : new and bet are the same ? (blind bets -> start game ??)
+  def with_player(%__MODULE__{players: players} = game, player) do
+    player_id = Surefire.Player.id(player)
+
+    %{game | players: players |> Map.put(player_id, player)}
+  end
+
   # semantics : open position... bet in the betting box
+  # TODO : change this into interaction with avatar...
   def bet(
         %__MODULE__{players: players, rounds: [game | old_games]} = bj,
         player,
@@ -102,6 +108,8 @@ defmodule Blackjack.Game do
     for %Blackjack.Event.PlayerExit{id: pp_id, gain: gain} <- exits,
         reduce: %{bj | rounds: [resolved_game | old_games]} do
       %__MODULE__{} = acc ->
+        # TODO : with transactions / accounting instead...
+
         %{
           acc
           | players:
