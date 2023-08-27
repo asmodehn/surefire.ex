@@ -128,6 +128,8 @@ defmodule Surefire.IExPlayer do
     # Shouldnt the Account be mirrored here ??
     avatar = Surefire.Avatar.new(avatar_id, updated_ledger.externals[avatar_id])
 
+    # TODO : create transaction and store in history to assign funds...
+
     # return the avatar with the account id (as pointer to create a transaction)
     {avatar, %{player | ledger: updated_ledger}}
   end

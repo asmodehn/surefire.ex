@@ -36,14 +36,14 @@ defmodule Blackjack.Round do
   end
 
   # rename to "enter" or something similar ??
-  # TODO : Note: client should pass avatar (to parameterize game actions as desired)
-  def bet(%__MODULE__{bets: bets, avatars: avatars} = round, %Surefire.Avatar{} = avatar, amount)
-      when is_number(amount) do
+  def enter(%__MODULE__{bets: bets, avatars: avatars} = round, %Surefire.Avatar{} = avatar) do
     # TODO : make sure avatar implements avatar behaviour...
+
+    {amount, avatar} = Avatar.bet(avatar)
+
     %{
       round
       | bets: bets |> Bets.player_bet(avatar.id, amount),
-        # WIP probably dont put the whole player, just a "mergeable part of it" (avatar)
         avatars: avatars |> Map.put(avatar.id, avatar)
     }
   end

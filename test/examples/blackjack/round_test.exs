@@ -22,29 +22,29 @@ defmodule Blackjack.RoundTest do
     end
   end
 
-  describe "bet/3" do
-    test "accepts the bet of an avatar" do
-      game = Round.new() |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
+  describe "enter/3" do
+    test "accepts the avatar and request a bet" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
-      # TODO :maybe this is one level too much ?
+      game = Round.new() |> Round.enter(avatar)
+
+      # TODO :maybe this is one level too much ? => integrate bets in avatar's account
       assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
-      assert game.avatars == %{bob: Surefire.Avatar.new(:bob, :from_test)}
-    end
-
-    test "stores the avatar in the list for this round" do
-      game = Round.new() |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
-
-      # TODO :maybe this is one level too much ?
-      assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
-      assert game.avatars == %{bob: Surefire.Avatar.new(:bob, :from_test)}
+      assert game.avatars == %{bob: avatar}
     end
   end
 
   describe "deal/2" do
     test "deals no card when shoe is empty and mark table as void" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+
       game =
         Round.new()
-        |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
+        |> Round.enter(avatar)
         |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
@@ -56,9 +56,13 @@ defmodule Blackjack.RoundTest do
     end
 
     test "deals card to a player with a bet" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
+        |> Round.enter(avatar)
         |> Round.deal(:bob)
 
       # TODO : hand as just a list of cards (no struct) ???
@@ -68,10 +72,14 @@ defmodule Blackjack.RoundTest do
     end
 
     test "deals no card to a player without a bet" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(Surefire.Avatar.new(:alice, :from_test), 45)
-        |> Round.deal(:bob)
+        |> Round.enter(avatar)
+        |> Round.deal(:alice)
 
       assert game.table.players == %{}
       # cards left in shoe
@@ -85,13 +93,14 @@ defmodule Blackjack.RoundTest do
         ph, dh -> raise "player_hand: #{ph}, dealer_hand: #{dh}"
       end
 
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.with_action(:hit_or_stand, bob_request)
+
       game =
         Round.new(~C[5 8 K]h)
-        |> Round.bet(
-          Surefire.Avatar.new(:bob, :from_test)
-          |> Surefire.Avatar.with_action(:hit_or_stand, bob_request),
-          45
-        )
+        |> Round.enter(avatar)
         |> Round.deal()
 
       assert_raise RuntimeError, "player_hand: 5♥,K♥: 15, dealer_hand: 8♥: 8", fn ->
@@ -102,9 +111,13 @@ defmodule Blackjack.RoundTest do
 
   describe "resolve" do
     test "decides if a player wins and update bets" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+
       game =
         Round.new(~C[A 8 K]h ++ ~C[A]s)
-        |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
+        |> Round.enter(avatar)
         # CAREFUL : Round.deal deals one card to each player in list, then dealer, then players again
         |> Round.deal([:bob])
 
@@ -123,9 +136,13 @@ defmodule Blackjack.RoundTest do
     end
 
     test "decides if a player loses and update bets" do
+      avatar =
+        Surefire.Avatar.new(:bob, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+
       game =
         Round.new(~C[5 J K A]h)
-        |> Round.bet(Surefire.Avatar.new(:bob, :from_test), 45)
+        |> Round.enter(avatar)
         |> Round.deal([:bob])
 
       # 15
@@ -144,15 +161,15 @@ defmodule Blackjack.RoundTest do
   end
 
   describe "one-player game" do
-    @tag :current
     test "can get blackjack on deal and win" do
+      avatar =
+        Surefire.Avatar.new(:alice, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {12, av} end)
+        |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
+
       game =
         Round.new(~C[J]h ++ ~C[8]s ++ ~C[A]c ++ ~C[8 K]d)
-        |> Round.bet(
-          Surefire.Avatar.new(:alice, :from_test)
-          |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end),
-          12
-        )
+        |> Round.enter(avatar)
         |> Round.deal()
 
       assert game.table.players[:alice] == Hand.new() |> Hand.add_card(~C[J]h ++ ~C[A]c)
@@ -173,15 +190,15 @@ defmodule Blackjack.RoundTest do
       assert %Blackjack.Event.PlayerExit{id: :from_test, gain: 24} in events
     end
 
-    @tag :current
     test "can get blackjack on deal and lose (WIP should tie)" do
+      avatar =
+        Surefire.Avatar.new(:alice, :from_test)
+        |> Surefire.Avatar.with_action(:bet, fn av -> {12, av} end)
+        |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
+
       game =
         Round.new(~C[J]h ++ ~C[A]s ++ ~C[A]c ++ ~C[Q]d)
-        |> Round.bet(
-          Surefire.Avatar.new(:alice, :from_test)
-          |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end),
-          12
-        )
+        |> Round.enter(avatar)
         |> Round.deal()
 
       assert game.table.players[:alice] == Hand.new() |> Hand.add_card(~C[J]h ++ ~C[A]c)

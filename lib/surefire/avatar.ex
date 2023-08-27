@@ -32,6 +32,45 @@ defmodule Surefire.Avatar do
     %__MODULE__{id: id, player_id: player_id}
   end
 
+  # TODO: different type of actions: read only | mutating avatar
+  # TODO : or different API (pick one in server, statemachine, etc. ?)
+  def with_action(%__MODULE__{} = avatar, action_name, action_body) do
+    %{avatar | actions: avatar.actions |> Map.put(action_name, action_body)}
+  end
+
+  # TMP solution, we can probably do better
+  def call_action(%__MODULE__{actions: actions}, action_name) do
+    actions[action_name].()
+  end
+
+  def call_action(%__MODULE__{actions: actions}, action_name, param1) do
+    actions[action_name].(param1)
+  end
+
+  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2) do
+    actions[action_name].(param1, param2)
+  end
+
+  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2, param3) do
+    actions[action_name].(param1, param2, param3)
+  end
+
+  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name) do
+    actions[action_name].(avatar)
+  end
+
+  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1) do
+    actions[action_name].(avatar, param1)
+  end
+
+  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1, param2) do
+    actions[action_name].(avatar, param1, param2)
+  end
+
+  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1, param2, param3) do
+    actions[action_name].(avatar, param1, param2, param3)
+  end
+
   def decide(%__MODULE__{} = avatar, prompt, choice_map) do
     keys = Map.keys(choice_map)
     choice_idx = ExPrompt.choose(prompt, keys)
@@ -45,20 +84,17 @@ defmodule Surefire.Avatar do
       end
   end
 
-  def with_action(%__MODULE__{} = avatar, action_name, action_body) do
-    %{avatar | actions: avatar.actions |> Map.put(action_name, action_body)}
+  def ask(%__MODULE__{} = _avatar, prompt) do
+    ExPrompt.string_required(prompt)
   end
 
-  # TMP solution, we can probably do better
-  def call_action(%__MODULE__{actions: actions}, action_name, param1) do
-    actions[action_name].(param1)
-  end
-
-  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2) do
-    actions[action_name].(param1, param2)
-  end
-
-  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2, param3) do
-    actions[action_name].(param1, param2, param3)
+  def bet_transaction(%__MODULE__{} = avatar, amount, to_account) do
+    #        amount,
+    #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+    #        ledger_revenue_account_id \\ :revenue
+    #      ) do
+    Transaction.build("#{avatar.account.name} Bet on #{to_account}")
+    |> Transaction.with_credit(avatar.account.id, amount)
+    |> Transaction.with_debit(to_account.id, amount)
   end
 end
