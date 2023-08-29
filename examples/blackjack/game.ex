@@ -21,7 +21,7 @@ defmodule Blackjack.Game do
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
-            ledger: %Surefire.Accounting.Book{},
+#            ledger: %Surefire.Accounting.Book{},
             rounds: []
 
   # TODO : map of games, to match games with avatars...
@@ -33,10 +33,15 @@ defmodule Blackjack.Game do
   """
   def new(deck_number \\ 3, initial_funds \\ 1000) do
     shoe = Card.deck() |> List.duplicate(deck_number) |> List.flatten() |> Enum.shuffle()
-    %__MODULE__{ledger: Book.new(initial_funds)} |> new_round("First round", shoe)
+    %__MODULE__{
+    #  ledger: Book.new(initial_funds)
+    }
+    |> new_round("First round", shoe)
   end
 
-  def new_round(%__MODULE__{rounds: games, ledger: ledger}, id, shoe, initial_funds \\ 100) do
+  def new_round(%__MODULE__{rounds: games ,
+#    ledger: ledger
+  }, id, shoe, initial_funds \\ 100) do
     new_round = Round.new(id, shoe, Account.new_debit(id, "Round Account"))
 
     # TODO create transaction to transfer funds
@@ -48,7 +53,7 @@ defmodule Blackjack.Game do
 
     %__MODULE__{
       rounds: [new_round | games],
-      ledger: ledger
+#      ledger: ledger
     }
   end
 

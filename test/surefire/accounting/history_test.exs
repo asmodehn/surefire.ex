@@ -16,7 +16,7 @@ defmodule Surefire.Accounting.HistoryTest do
   end
 
   describe "commit/2" do
-    test "stores a balanced transaction in the history" do
+    test "stores a balanced transaction in the history and remember its id" do
       t =
         Transaction.build("test description")
         |> Transaction.with_debit(:test_account_a, 42)
@@ -28,9 +28,10 @@ defmodule Surefire.Accounting.HistoryTest do
 
       assert h.transactions == %{}
 
-      {:ok, %History{transactions: committed}} = History.commit(h, "transac_id", t)
+      {:ok, %History{transactions: committed} = up_hist} = History.commit(h, "transac_id", t)
 
       assert "transac_id" in Map.keys(committed)
+      assert up_hist.last_committed_id == "transac_id"
       assert committed["transac_id"].description == "test description"
       assert committed["transac_id"].debit == [test_account_a: 42]
       assert committed["transac_id"].credit == [test_account_b: 42]

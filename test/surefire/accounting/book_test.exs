@@ -1,9 +1,9 @@
-defmodule Surefire.Accounting.BookTest do
+defmodule Surefire.Accounting.LedgerServer.BookTest do
   use ExUnit.Case, async: true
 
   alias Surefire.Accounting.Account
   alias Surefire.Accounting.Transaction
-  alias Surefire.Accounting.Book
+  alias Surefire.Accounting.LedgerServer.Book
 
   describe "new/1" do
     test "creates a new book of accounts with last known transaction id. ignores the past." do
@@ -192,4 +192,5 @@ defmodule Surefire.Accounting.BookTest do
   describe "reflect/2" do
     # TODO :from history, all transactions have an id and a date.
   end
+
 end

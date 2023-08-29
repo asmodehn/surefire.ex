@@ -10,11 +10,13 @@ defmodule Surefire.Accounting.History do
   alias Surefire.Accounting.Transaction
 
   defstruct id_generator: nil,
-            transactions: %{}
+            transactions: %{},
+            last_committed_id: nil
 
   @type t :: %__MODULE__{
           id_generator: any,
-          transactions: %{String.t() => Transaction.t()}
+          transactions: %{String.t() => Transaction.t()},
+          last_committed_id: nil | String.t()
         }
 
   def new() do
@@ -52,7 +54,10 @@ defmodule Surefire.Accounting.History do
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
     with {:balanced, true} <- {:balanced, Transaction.verify_balanced(transact)} do
-      {:ok, %{history | transactions: history.transactions |> Map.put_new(id, transact)}}
+      {:ok, %{
+        history | transactions: history.transactions |> Map.put_new(id, transact),
+                  last_committed_id: id
+      }}
     else
       {:balanced, false} -> {:error, :unbalanced_transaction}
     end
