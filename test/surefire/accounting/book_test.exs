@@ -5,15 +5,19 @@ defmodule Surefire.Accounting.BookTest do
   alias Surefire.Accounting.Transaction
   alias Surefire.Accounting.Book
 
-  describe "add_external/2" do
-    test "adds an external account to the accounts on the book" do
-      a = Account.new_debit(:alice, "Alice Debit", 42)
+  describe "new/1" do
+    test "creates a new book of accounts with last known transaction id. ignores the past." do
+      book = Book.new("fakeID")
+      assert "absentID" < "fakeID"
 
-      b =
-        Book.new()
-        |> Book.add_external(a)
+      test_transact = %Transaction{
+        date: ~U[2021-02-03 04:05:06.789Z],
+        description: "debit transaction for this account",
+        debit: [test_debit: 42],
+        credit: []
+      }
 
-      assert b.externals[:alice] == a
+      assert book |> Book.reflect(test_transact, "absentID") == book
     end
   end
 
@@ -39,15 +43,16 @@ defmodule Surefire.Accounting.BookTest do
 
   describe "reflect/3" do
     test "records a transaction in the book, by splitting entries into the various accounts" do
-      a = Account.new_debit(:alice, "Alice Assets", 0)
+      book = Book.new(100) |> Book.open_debit_account(:alice, "Alice Assets")
 
-      book = Book.new(100) |> Book.add_external(a)
-
-      t = Transaction.funding_to(42, a)
+      # Note: unbalanced transaction can be reflected
+      t =
+        Transaction.build("Funding to Alice Assets")
+        |> Transaction.with_debit(:alice, 42)
 
       updated_book = book |> Book.reflect(t, "a2b_fake_ID")
 
-      updated_a = updated_book.externals[:alice]
+      updated_a = updated_book.accounts[:alice]
 
       assert updated_a.entries == [
                %Transaction.Entry{
@@ -59,18 +64,7 @@ defmodule Surefire.Accounting.BookTest do
                }
              ]
 
-      assert updated_book.assets.entries == [
-               %Transaction.Entry{
-                 account: :assets,
-                 transaction_id: "a2b_fake_ID",
-                 description: "Funding to Alice Assets",
-                 debit: 0,
-                 credit: 42
-               }
-             ]
-
       assert Account.balance(updated_a) == 42
-      assert Account.balance(updated_book.assets) == 100 - 42
 
       # TODO : fix API :
       # - different names / modules for types of account ?
