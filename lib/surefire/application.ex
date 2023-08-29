@@ -10,6 +10,7 @@ defmodule Surefire.Application do
     children = [
       # Starts a worker by calling: Surefire.Worker.start_link(arg)
       # {Surefire.Worker, arg}
+      Surefire.Accounting
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -28,22 +28,19 @@ defmodule Surefire.Accounting.Account do
   alias Surefire.Accounting.Transaction
   alias Surefire.Accounting.Account.Balance
 
-  @derive {Inspect, only: [:name, :balance]}
+  #  @derive {Inspect, only: [:name, :balance]}
   defstruct id: nil,
             name: "",
             type: :debit,
             entries: [],
-            balance: %Balance{},
-            # TOOD : maybe we dont need this ??
-            last_seen_transaction: nil
+            balance: %Balance{}
 
   @type t :: %__MODULE__{
           id: atom(),
           name: String.t(),
           type: :debit | :credit,
           entries: [Transaction.Entry.t()],
-          balance: Balance.t(),
-          last_seen_transaction: nil | String.t()
+          balance: Balance.t()
         }
 
   def new_debit(id, name, opening \\ 0) when is_integer(opening) when is_atom(id) do
@@ -100,31 +97,31 @@ defmodule Surefire.Accounting.Account do
     %{account | entries: entries ++ [entry], balance: Balance.update(balance, entry)}
   end
 
-  # TODO : review this and put some (all?) of it in Book (expected caller)
-  @doc ~s"""
-  reflect/3 modifies the account to add entries for a transaction.
-  However, to avoid processing N times the same transactions, this transaction must be
-  more recent (relies on lexical order of transaction_id) than the previous one.
-  => reflect must therefore be called onto the transaction in order of their ids.
-  Otherwise, the transaction is simply ignored.
-  """
-  def reflect(
-        %__MODULE__{last_seen_transaction: last_transact} = account,
-        %Transaction{} = transaction,
-        transaction_id
-      )
-      when last_transact < transaction_id do
-    updated_account =
-      for e <-
-            transaction
-            |> Transaction.as_entries(transaction_id)
-            |> Enum.filter(fn e -> e.account == account.id end),
-          reduce: account do
-        acc -> acc |> append(e)
-      end
-
-    %{updated_account | last_seen_transaction: transaction_id}
-  end
+  #  # TODO : review this and put some (all?) of it in Book (expected caller)
+  #  @doc ~s"""
+  #  reflect/3 modifies the account to add entries for a transaction.
+  #  However, to avoid processing N times the same transactions, this transaction must be
+  #  more recent (relies on lexical order of transaction_id) than the previous one.
+  #  => reflect must therefore be called onto the transaction in order of their ids.
+  #  Otherwise, the transaction is simply ignored.
+  #  """
+  #  def reflect(
+  #        %__MODULE__{last_seen_transaction: last_transact} = account,
+  #        %Transaction{} = transaction,
+  #        transaction_id
+  #      )
+  #      when last_transact < transaction_id do
+  #    updated_account =
+  #      for e <-
+  #            transaction
+  #            |> Transaction.as_entries(transaction_id)
+  #            |> Enum.filter(fn e -> e.account == account.id end),
+  #          reduce: account do
+  #        acc -> acc |> append(e)
+  #      end
+  #
+  #    %{updated_account | last_seen_transaction: transaction_id}
+  #  end
 
   defimpl String.Chars do
     def to_string(%Surefire.Accounting.Account{} = account) do
@@ -135,27 +132,31 @@ defmodule Surefire.Accounting.Account do
     end
   end
 
-  defimpl Inspect do
-    import Inspect.Algebra
-
-    def inspect(account, opts) do
-      concat([
-        "#Surefire.Accounting.Account<",
-        Inspect.Atom.inspect(account.id, opts),
-        Inspect.Algebra.break("\n"),
-        "[#{length(account.entries)} entries]",
-        Inspect.Algebra.break("\n"),
-        Kernel.inspect(account.balance),
-        Inspect.Algebra.break("\n"),
-        #        if account.closed do
-        #          "CLOSED!"
-        #        else
-        #          "ONGOING..."
-        #        end,
-        ">"
-      ])
-    end
-  end
+  #  defimpl Inspect do
+  #    import Inspect.Algebra
+  #
+  #    # TODO : this seems more annoying than useful...
+  #    # => inspect should show all the data (understand match problems, etc.)
+  #    # => leave collapsing data to String.Chars protocol...
+  #
+  #    def inspect(account, opts) do
+  #      concat([
+  #        "#Surefire.Accounting.Account<",
+  #        Inspect.Atom.inspect(account.id, opts),
+  #        Inspect.Algebra.break("\n"),
+  #        "[#{length(account.entries)} entries]",
+  #        Inspect.Algebra.break("\n"),
+  #        Kernel.inspect(account.balance),
+  #        Inspect.Algebra.break("\n"),
+  #        #        if account.closed do
+  #        #          "CLOSED!"
+  #        #        else
+  #        #          "ONGOING..."
+  #        #        end,
+  #        ">"
+  #      ])
+  #    end
+  #  end
 
   # TODO leverage this in display with Table_rex.
   # See: https://github.com/djm/table_rex/issues/56

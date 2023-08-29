@@ -15,6 +15,7 @@ defmodule Surefire.Accounting.Book do
             revenue: nil,
             expenses: nil,
             externals: %{},
+            accounts: %{},
             last_reflected: nil
 
   @type t :: %__MODULE__{
@@ -23,10 +24,10 @@ defmodule Surefire.Accounting.Book do
           revenue: Account.t(),
           expenses: Account.t(),
           externals: %{atom => Account.t()},
+          accounts: Map.t(),
           last_reflected: atom
         }
 
-  # TODO MAYBE ? def new(starting_assets, starting_liabilities // 0) do
   def new(initial_assets \\ 0, liabilities \\ 0) do
     %__MODULE__{
       assets: Account.new_debit(:assets, "Assets", initial_assets),
@@ -40,7 +41,25 @@ defmodule Surefire.Accounting.Book do
     %{book | externals: book.externals |> Map.put(account.id, account)}
   end
 
+  def open_debit_account(%__MODULE__{} = book, id, name) do
+    %{book | accounts: book.accounts |> Map.put(id, Account.new_debit(id, name))}
+  end
+
+  def open_credit_account(%__MODULE__{} = book, id, name) do
+    %{book | accounts: book.accounts |> Map.put(id, Account.new_credit(id, name))}
+  end
+
   # TODO : review & test this
+  def reflect(
+        %__MODULE__{last_reflected: last_reflected} = book,
+        %Transaction{},
+        transaction_id
+      )
+      when last_reflected >= transaction_id do
+    # already reflected  !
+    book
+  end
+
   def reflect(
         %__MODULE__{last_reflected: last_reflected} = book,
         %Transaction{} = transaction,
@@ -53,6 +72,15 @@ defmodule Surefire.Accounting.Book do
           cond do
             entry.account in [:assets, :liabilities, :revenue, :expenses] ->
               book |> Map.update!(entry.account, &Account.append(&1, entry))
+
+            # TODO : keep this and get rid of distinction between internal and externals...
+            entry.account in Map.keys(book.accounts) ->
+              %{
+                book
+                | accounts:
+                    book.accounts
+                    |> Map.update!(entry.account, &Account.append(&1, entry))
+              }
 
             entry.account in Map.keys(book.externals) ->
               %{
@@ -76,7 +104,7 @@ defmodule Surefire.Accounting.Book do
   def reflect(%__MODULE__{} = book, %History{} = history) do
     # CAREFUL : the history should be sorted (lexical order of ids)
     # to make sure we pass the transactions in order
-    for {tid, t} <- history.transaction, reduce: book do
+    for {tid, t} <- history.transactions, reduce: book do
       book_acc -> reflect(book_acc, t, tid)
     end
   end

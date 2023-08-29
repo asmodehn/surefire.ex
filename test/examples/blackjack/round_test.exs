@@ -1,23 +1,18 @@
 defmodule Blackjack.RoundTest do
   use ExUnit.Case, async: true
 
-  alias Blackjack.{Round, Hand}
+  alias Blackjack.{Round, Hand, Card}
 
   use Blackjack.Card.Sigil
 
   describe "new/1" do
     test "accepts an empty deck as the shoe" do
-      game = Round.new(~C[])
-      assert game.table.shoe == ~C[]
-    end
-
-    test "uses an empty deck as default shoe" do
-      game = Round.new()
+      game = Round.new("test_round", ~C[])
       assert game.table.shoe == ~C[]
     end
 
     test "accepts a deck of cards as the shoe" do
-      game = Round.new(~C[3 6 8 10 Q]c)
+      game = Round.new("test_round", ~C[3 6 8 10 Q]c)
       assert game.table.shoe == ~C[3 6 8 10 Q]c
     end
   end
@@ -28,7 +23,7 @@ defmodule Blackjack.RoundTest do
         Surefire.Avatar.new(:bob, :from_test)
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
-      game = Round.new() |> Round.enter(avatar)
+      game = Round.new("test_round", Card.deck()) |> Round.enter(avatar)
 
       # TODO :maybe this is one level too much ? => integrate bets in avatar's account
       assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
@@ -43,7 +38,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
       game =
-        Round.new()
+        Round.new("test_round", [])
         |> Round.enter(avatar)
         |> Round.deal(:bob)
 
@@ -61,7 +56,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
       game =
-        Round.new(~C[5 8 K]h)
+        Round.new("test_round", ~C[5 8 K]h)
         |> Round.enter(avatar)
         |> Round.deal(:bob)
 
@@ -77,7 +72,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
       game =
-        Round.new(~C[5 8 K]h)
+        Round.new("test_round", ~C[5 8 K]h)
         |> Round.enter(avatar)
         |> Round.deal(:alice)
 
@@ -99,7 +94,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:hit_or_stand, bob_request)
 
       game =
-        Round.new(~C[5 8 K]h)
+        Round.new("test_round", ~C[5 8 K]h)
         |> Round.enter(avatar)
         |> Round.deal()
 
@@ -116,7 +111,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
       game =
-        Round.new(~C[A 8 K]h ++ ~C[A]s)
+        Round.new("test_round", ~C[A 8 K]h ++ ~C[A]s)
         |> Round.enter(avatar)
         # CAREFUL : Round.deal deals one card to each player in list, then dealer, then players again
         |> Round.deal([:bob])
@@ -141,7 +136,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
 
       game =
-        Round.new(~C[5 J K A]h)
+        Round.new("test_round", ~C[5 J K A]h)
         |> Round.enter(avatar)
         |> Round.deal([:bob])
 
@@ -168,7 +163,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
 
       game =
-        Round.new(~C[J]h ++ ~C[8]s ++ ~C[A]c ++ ~C[8 K]d)
+        Round.new("test_round", ~C[J]h ++ ~C[8]s ++ ~C[A]c ++ ~C[8 K]d)
         |> Round.enter(avatar)
         |> Round.deal()
 
@@ -197,7 +192,7 @@ defmodule Blackjack.RoundTest do
         |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
 
       game =
-        Round.new(~C[J]h ++ ~C[A]s ++ ~C[A]c ++ ~C[Q]d)
+        Round.new("test_round", ~C[J]h ++ ~C[A]s ++ ~C[A]c ++ ~C[Q]d)
         |> Round.enter(avatar)
         |> Round.deal()
 

@@ -95,4 +95,57 @@ defmodule Surefire.Accounting.HistoryTest do
       assert committed["transac_id"].date == ~U[2021-02-03 04:05:06.789Z]
     end
   end
+
+  describe "transactions_from/2" do
+    test "returns a partial history with transactions from a certain id (included)" do
+      t1 =
+        Transaction.build("test description")
+        |> Transaction.with_debit(:test_account_a, 1)
+        |> Transaction.with_credit(:test_account_b, 1)
+
+      t2 =
+        Transaction.build("test description")
+        |> Transaction.with_debit(:test_account_a, 2)
+        |> Transaction.with_credit(:test_account_b, 2)
+
+      t3 =
+        Transaction.build("test description")
+        |> Transaction.with_debit(:test_account_a, 3)
+        |> Transaction.with_credit(:test_account_b, 3)
+
+      with {id1, h} <- History.new_transaction_id(History.new()),
+           {:ok, hh} <- History.commit(h, id1, t1),
+           {id2, hhh} <- History.new_transaction_id(hh),
+           {:ok, hhhh} <- History.commit(hhh, id2, t2),
+           {id3, hhhhh} <- History.new_transaction_id(hhhh),
+           {:ok, hhhhhh} <- History.commit(hhhhh, id3, t3) do
+        t1c = hh.transactions[id1]
+        t2c = hhhh.transactions[id2]
+        t3c = hhhhhh.transactions[id3]
+
+        assert History.transactions_from(hhhhhh, id3) == %History{transactions: %{id3 => t3c}}
+
+        assert History.transactions_from(hhhhhh, id2) == %History{
+                 transactions: %{
+                   id2 => t2c,
+                   id3 => t3c
+                 }
+               }
+
+        assert History.transactions_from(hhhhhh, id1) == %History{
+                 transactions: %{
+                   id1 => t1c,
+                   id2 => t2c,
+                   id3 => t3c
+                 }
+               }
+
+        assert hhhhhh.transactions == %{
+                 id1 => t1c,
+                 id2 => t2c,
+                 id3 => t3c
+               }
+      end
+    end
+  end
 end

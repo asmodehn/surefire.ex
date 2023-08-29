@@ -8,11 +8,11 @@ defmodule Blackjack.GameTest do
     player = Surefire.TestPlayer.new("alice", 42)
     #      |> IO.inspect()
 
-    {avatar, player} = player |> Surefire.TestPlayer.avatar("one_round")
+    {avatar, _updated_player} = player |> Surefire.TestPlayer.avatar("one_round")
 
     avatar =
       avatar
-      |> Surefire.Avatar.with_action(:hit_or_stand, fn ph, dh -> Enum.random([:hit, :stand]) end)
+      |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> Enum.random([:hit, :stand]) end)
 
     # TODO : review API here to decide how to play the long game with player/avatars...
     bj = Game.new()

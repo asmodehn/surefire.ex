@@ -33,6 +33,12 @@ defmodule Surefire.Accounting.History do
     #   OR modify/extend the content of the id as in https://github.com/fogfish/uid or https://github.com/okeuday/uuid
   end
 
+  def new_transaction_id(%__MODULE__{id_generator: nil} = history) do
+    # in this case we want to prevent  generating(we doonot know where this copy comes from ??)
+    # probably generated from transactions_from/n ??
+    raise RuntimeError, message: "Attempt to create id from History Clone"
+  end
+
   @spec commit(t(), String.t(), Transaction.t()) :: {:ok, t()} | {:error, any()}
 
   def commit(%__MODULE__{transactions: transactions}, id, _)
@@ -50,5 +56,13 @@ defmodule Surefire.Accounting.History do
     else
       {:balanced, false} -> {:error, :unbalanced_transaction}
     end
+  end
+
+  def transactions_from(%__MODULE__{transactions: transactions} = history, id) do
+    %__MODULE__{
+      transactions:
+        transactions
+        |> Map.filter(fn {k, v} -> k >= id end)
+    }
   end
 end

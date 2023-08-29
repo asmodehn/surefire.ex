@@ -28,8 +28,12 @@ defmodule Surefire.Avatar do
             account: %Surefire.Accounting.Account{},
             actions: %{}
 
-  def new(id, player_id) do
-    %__MODULE__{id: id, player_id: player_id}
+  def new(id, player_id, initial_funds \\ 100) do
+    %__MODULE__{
+      id: id,
+      player_id: player_id,
+      account: Surefire.Accounting.Account.new_debit(id, initial_funds)
+    }
   end
 
   # TODO: different type of actions: read only | mutating avatar

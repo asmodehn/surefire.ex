@@ -2,6 +2,9 @@ defmodule Blackjack.Round do
   @moduledoc ~s"""
   This module manages one game of blackjack.
 
+  We care about the bts at this level.
+    The stochastic process is in Table, and manages the "game" itself, without being concerned with bets.
+
   To run a quick game:
 
       iex> me = Surefire.IExPlayer.new(:mememe, 100)
@@ -20,19 +23,27 @@ defmodule Blackjack.Round do
   alias Blackjack.{Bets, Table, Avatar}
   #  alias Blackjack.Event.{PlayerExit}
 
+  alias Surefire.Accounting.{Account, Transaction}
+
   @derive {Inspect, only: [:bets, :avatars, :table]}
 
   defstruct id: "the_roundWIP",
             bets: %Bets{},
             avatars: %{},
+            account: %Surefire.Accounting.Account{},
             # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
             table: %Table{}
 
   # Note: one player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
-  def new(shoe \\ []) do
-    %{%__MODULE__{} | table: Table.new(shoe)}
+  def new(id, shoe) do
+    %{
+      %__MODULE__{}
+      | id: id,
+        table: Table.new(shoe)
+        #    account: account
+    }
   end
 
   # rename to "enter" or something similar ??
