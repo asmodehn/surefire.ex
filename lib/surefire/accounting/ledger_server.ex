@@ -7,7 +7,7 @@ defmodule Surefire.Accounting.LedgerServer do
     On process end / closing, the assets are restituted to the parent process
     """
 
-    alias Surefire.Accounting.{LogCache, Account, Transaction}
+    alias Surefire.Accounting.{History, Account, Transaction}
 
     defstruct accounts: %{},
               # TODO : stream to make this implicit...
@@ -34,7 +34,7 @@ defmodule Surefire.Accounting.LedgerServer do
 
     # TODO : review & test this
     def reflect(
-          %__MODULE__{last_reflected: last_reflected} = book,
+          %__MODULE__{last_reflected: last_reflected},
           %Transaction{},
           transaction_id
         )
@@ -82,10 +82,10 @@ defmodule Surefire.Accounting.LedgerServer do
       %{updated_book | last_reflected: transaction_id}
     end
 
-    def reflect(%__MODULE__{} = book, %LogCache{chunk: chunk}) do
+    def reflect(%__MODULE__{} = book, %History.Chunk{transactions: transactions}) do
       # CAREFUL : the history should be sorted (lexical order of ids)
       # to make sure we pass the transactions in order
-      for {tid, t} <- chunk.transactions, reduce: book do
+      for {tid, t} <- transactions, reduce: book do
         book_acc -> reflect(book_acc, t, tid)
       end
     end
@@ -94,12 +94,11 @@ defmodule Surefire.Accounting.LedgerServer do
   @moduledoc ~s"""
   A GenServer, holding a ledger and managing it.
   However, a Ledger is simply a read model over the Transactions Log, managed by the `LogServer`.
-    We access them via `LogCache`, keeping track of what has been seen or not...
 
   Note: This is used both on the player process, as well as for the game process.
   """
 
-  alias Surefire.Accounting.{LogCache, Account, Transaction}
+  alias Surefire.Accounting.{LogServer, History, Account, Transaction}
 
   use GenServer
   # TODO : use GenStage instead ? most of the functionality already done ??
@@ -135,40 +134,52 @@ defmodule Surefire.Accounting.LedgerServer do
 
   @impl true
   def init(history_pid) do
-    {:ok, {LogCache.new(history_pid), Book.new()}}
+    # TODO : maybe an optional starting date ?? or only in each accounts when opening ?
+    {:ok, {history_pid, nil, Book.new()}}
   end
 
   @impl true
-  def handle_call({:open, aid, aname, :debit}, _from, {log_cache, book}) do
+  def handle_call({:open, aid, aname, :debit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_debit_account(aid, aname)
 
-    {:reply, :ok, {log_cache, updated_book}}
+    {:reply, :ok, {hpid, chunk, updated_book}}
   end
 
   @impl true
-  def handle_call({:open, aid, aname, :credit}, _from, {log_cache, book}) do
+  def handle_call({:open, aid, aname, :credit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_credit_account(aid, aname)
 
-    {:reply, :ok, {log_cache, updated_book}}
+    {:reply, :ok, {hpid, chunk, updated_book}}
+  end
+
+
+  @impl true
+  def handle_call({:balance, aid}, _from, {hpid, last_chunk, book}) do
+    # grab new history chunk and reflect in book
+    chunk = new_chunk(hpid, last_chunk)
+    updated_book = book |> Book.reflect(chunk)
+    # dropping cache ? we dont need it any longer...
+    {:reply, updated_book.accounts[aid] |> Account.balance(), {hpid, chunk , updated_book}}
   end
 
   @impl true
-  def handle_call({:balance, aid}, _from, {log_cache, book}) do
-    recent_cache = log_cache |> LogCache.next()
-
-    updated_book = book |> Book.reflect(recent_cache)
-    # TODO : dropping cache ? we dont need it any longer...
-    {:reply, updated_book.accounts[aid] |> Account.balance(), {recent_cache, updated_book}}
-  end
-
-  @impl true
-  def handle_call({:view, aid}, _from, {log_cache, book}) do
-    recent_cache = log_cache |> LogCache.next()
-
-    updated_book = book |> Book.reflect(recent_cache)
-    # TODO : dropping cache ? we dont need it any longer...
-    {:reply, updated_book.accounts[aid], {recent_cache, updated_book}}
+  def handle_call({:view, aid}, _from, {hpid, last_chunk, book}) do
+    # grab new history chunk and reflect in book
+    chunk = new_chunk(hpid, last_chunk)
+    updated_book = book |> Book.reflect(chunk)
+    # dropping cache ? we dont need it any longer...
+    {:reply, updated_book.accounts[aid], {hpid, chunk, updated_book}}
   end
 
   # TODO: close account
+
+
+  defp new_chunk(hpid, nil) do
+    LogServer.chunk(hpid, from: nil)
+  end
+
+  defp new_chunk(hpid, %History.Chunk{} = last_chunk) do
+    LogServer.chunk(hpid, from: last_chunk.until)
+  end
+
 end
