@@ -1,5 +1,4 @@
 defmodule Surefire.Accounting.LedgerServer do
-
   defmodule Book do
     @moduledoc ~s"""
     TMP: general ledger with multiple accounts.
@@ -8,12 +7,13 @@ defmodule Surefire.Accounting.LedgerServer do
     On process end / closing, the assets are restituted to the parent process
     """
 
-        alias Surefire.Accounting.History
-    alias Surefire.Accounting.{LogServer, Account, Transaction}
-
+    alias Surefire.Accounting.{LogCache, Account, Transaction}
 
     defstruct accounts: %{},
+              # TODO : stream to make this implicit...
               last_reflected: nil
+
+    # TODO : => this should be only a map of accounts...
 
     @type t :: %__MODULE__{
             accounts: %{atom => Account.t()},
@@ -38,7 +38,17 @@ defmodule Surefire.Accounting.LedgerServer do
           %Transaction{},
           transaction_id
         )
-        when last_reflected >= transaction_id do
+        when last_reflected > transaction_id do
+      raise RuntimeError, message: "ERROR: old transaction id sent to ledger server !"
+      # In this case => check tid sort order and sequence of transactions in calls to reflect/3
+    end
+
+    def reflect(
+          %__MODULE__{last_reflected: last_reflected} = book,
+          %Transaction{},
+          transaction_id
+        )
+        when last_reflected == transaction_id do
       # already reflected  !
       book
     end
@@ -72,10 +82,10 @@ defmodule Surefire.Accounting.LedgerServer do
       %{updated_book | last_reflected: transaction_id}
     end
 
-    def reflect(%__MODULE__{} = book, %History{} = history) do
+    def reflect(%__MODULE__{} = book, %LogCache{chunk: chunk}) do
       # CAREFUL : the history should be sorted (lexical order of ids)
       # to make sure we pass the transactions in order
-      for {tid, t} <- history.transactions, reduce: book do
+      for {tid, t} <- chunk.transactions, reduce: book do
         book_acc -> reflect(book_acc, t, tid)
       end
     end
@@ -84,13 +94,16 @@ defmodule Surefire.Accounting.LedgerServer do
   @moduledoc ~s"""
   A GenServer, holding a ledger and managing it.
   However, a Ledger is simply a read model over the Transactions Log, managed by the `LogServer`.
+    We access them via `LogCache`, keeping track of what has been seen or not...
 
   Note: This is used both on the player process, as well as for the game process.
   """
 
-    alias Surefire.Accounting.{LogServer, Account, Transaction}
+  alias Surefire.Accounting.{LogCache, Account, Transaction}
 
   use GenServer
+  # TODO : use GenStage instead ? most of the functionality already done ??
+
   # TODO : implement using, so the user (player, and game modules)
   #        can do `use LedgerServer, history: pid_atom`
   #        and code their own Server on it...
@@ -122,41 +135,40 @@ defmodule Surefire.Accounting.LedgerServer do
 
   @impl true
   def init(history_pid) do
-    last_id = LogServer.last_committed(history_pid)
-    book = Book.new(last_id)
-    {:ok, {history_pid, book}}
+    {:ok, {LogCache.new(history_pid), Book.new()}}
   end
 
   @impl true
-  def handle_call({:open, aid, aname, :debit}, _from, {h, book}) do
+  def handle_call({:open, aid, aname, :debit}, _from, {log_cache, book}) do
     updated_book = book |> Book.open_debit_account(aid, aname)
 
-    {:reply, :ok, {h, updated_book}}
+    {:reply, :ok, {log_cache, updated_book}}
   end
 
   @impl true
-  def handle_call({:open, aid, aname, :credit}, _from, {h, book}) do
+  def handle_call({:open, aid, aname, :credit}, _from, {log_cache, book}) do
     updated_book = book |> Book.open_credit_account(aid, aname)
 
-    {:reply, :ok, {h, updated_book}}
+    {:reply, :ok, {log_cache, updated_book}}
   end
 
   @impl true
-  def handle_call({:balance, aid}, _from, {h, book}) do
-    updated_book = book |> Book.reflect(
-                             h |> LogServer.transactions(since: book.last_reflected)
-                           )
-    {:reply, updated_book.accounts[aid] |> Account.balance(), {h, updated_book}}
+  def handle_call({:balance, aid}, _from, {log_cache, book}) do
+    recent_cache = log_cache |> LogCache.next()
+
+    updated_book = book |> Book.reflect(recent_cache)
+    # TODO : dropping cache ? we dont need it any longer...
+    {:reply, updated_book.accounts[aid] |> Account.balance(), {recent_cache, updated_book}}
   end
 
   @impl true
-  def handle_call({:view, aid}, _from, {h, book}) do
-    updated_book = book |> Book.reflect(
-                             h |> LogServer.transactions(since: book.last_reflected)
-                           )
-    {:reply, updated_book.accounts[aid], {h, updated_book}}
+  def handle_call({:view, aid}, _from, {log_cache, book}) do
+    recent_cache = log_cache |> LogCache.next()
+
+    updated_book = book |> Book.reflect(recent_cache)
+    # TODO : dropping cache ? we dont need it any longer...
+    {:reply, updated_book.accounts[aid], {recent_cache, updated_book}}
   end
 
   # TODO: close account
-
 end

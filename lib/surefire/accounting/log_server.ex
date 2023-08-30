@@ -16,8 +16,7 @@ defmodule Surefire.Accounting.LogServer do
   alias Surefire.Accounting.{History, Transaction}
 
   use GenServer
-  # TODO : move history server into history module.
-  # TODO : keep this module for friendly interface ( with implicit account reflection)
+  # TODO : maybe GenStage is more appropriate here ???
 
   # Client
 
@@ -38,10 +37,12 @@ defmodule Surefire.Accounting.LogServer do
     tid
   end
 
-  def transactions(pid, opts \\ [since: nil]) do
+  def chunk(pid, opts \\ [from: nil, until: nil]) do
     # TODO : Stream instead ??
-    stid = Keyword.get(opts, :since)
-    GenServer.call(pid, {:transactions, stid})
+    ftid = Keyword.get(opts, :from)
+    utid = Keyword.get(opts, :until)
+
+    GenServer.call(pid, {:chunk, ftid, utid})
   end
 
   def last_committed(pid) do
@@ -63,15 +64,10 @@ defmodule Surefire.Accounting.LogServer do
   end
 
   @impl true
-  def handle_call({:transactions, transaction_id}, _from, history) do
-    ts =
-      if is_nil(transaction_id) do
-        history
-      else
-        history |> History.transactions_from(transaction_id)
-      end
+  def handle_call({:chunk, from_tid, until_tid}, _from, history) do
+    chunk = history |> History.chunk(from: from_tid, until: until_tid)
 
-    {:reply, ts, history}
+    {:reply, chunk, history}
   end
 
   @impl true

@@ -99,8 +99,8 @@ defmodule Surefire.IExPlayer do
   # TODO : only one player per iex session -> HOW ??
   def new(id, amount \\ 0) do
     # TODO : create funding transaction and commit
-    %__MODULE__{id: id#, ledger: Surefire.Accounting.Book.new()
-    }
+    # , ledger: Surefire.Accounting.Book.new()
+    %__MODULE__{id: id}
   end
 
   def new() do

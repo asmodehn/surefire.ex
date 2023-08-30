@@ -6,7 +6,7 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
   alias Surefire.Accounting.LedgerServer.Book
 
   describe "new/1" do
-    test "creates a new book of accounts with last known transaction id. ignores the past." do
+    test "creates a new book of accounts. errors on reflection of past ids." do
       book = Book.new("fakeID")
       assert "absentID" < "fakeID"
 
@@ -17,7 +17,22 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
         credit: []
       }
 
-      assert book |> Book.reflect(test_transact, "absentID") == book
+      assert_raise(RuntimeError, fn ->
+        book |> Book.reflect(test_transact, "absentID")
+      end)
+    end
+
+    test "creates a new book of accounts. ignores current last ids." do
+      book = Book.new("fakeID")
+
+      test_transact = %Transaction{
+        date: ~U[2021-02-03 04:05:06.789Z],
+        description: "debit transaction for this account",
+        debit: [test_debit: 42],
+        credit: []
+      }
+
+      assert book |> Book.reflect(test_transact, "fakeID") == book
     end
   end
 
@@ -184,13 +199,14 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       assert updated_book |> Book.reflect(ignored_transact, "fakeID") == updated_book
 
       assert "absentID" < "fakeID"
-      # lower id doesnt change the book
-      assert updated_book |> Book.reflect(ignored_transact, "absentID") == updated_book
+      # lower id errors
+      assert_raise(RuntimeError, fn ->
+        updated_book |> Book.reflect(ignored_transact, "absentID")
+      end)
     end
   end
 
   describe "reflect/2" do
     # TODO :from history, all transactions have an id and a date.
   end
-
 end

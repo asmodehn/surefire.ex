@@ -1,3 +1,35 @@
+defmodule Surefire.Accounting.History.Chunk do
+  @moduledoc ~s"""
+  Data of a chunk of transaction history
+  """
+
+  alias Surefire.Accounting.LogServer
+
+  defstruct from: nil,
+            until: nil,
+            transactions: %{}
+
+  @type t :: %__MODULE__{
+          from: String.t(),
+          until: String.t(),
+          transactions: %{String.t() => Transaction.t()}
+        }
+
+  def build(no_transactions) when no_transactions == %{} do
+    %__MODULE__{}
+  end
+
+  def build(transactions) do
+    tids = transactions |> Map.keys()
+
+    %__MODULE__{
+      from: Enum.min(tids),
+      until: Enum.max(tids),
+      transactions: transactions
+    }
+  end
+end
+
 defmodule Surefire.Accounting.History do
   @moduledoc ~s"""
   Manages the transaction history
@@ -8,6 +40,7 @@ defmodule Surefire.Accounting.History do
   """
 
   alias Surefire.Accounting.Transaction
+  alias Surefire.Accounting.History.Chunk
 
   defstruct id_generator: nil,
             transactions: %{},
@@ -15,6 +48,7 @@ defmodule Surefire.Accounting.History do
 
   @type t :: %__MODULE__{
           id_generator: any,
+          # TODO : redesign this to be a `LogChunk` although the biggest/original one...
           transactions: %{String.t() => Transaction.t()},
           last_committed_id: nil | String.t()
         }
@@ -54,20 +88,31 @@ defmodule Surefire.Accounting.History do
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
     with {:balanced, true} <- {:balanced, Transaction.verify_balanced(transact)} do
-      {:ok, %{
-        history | transactions: history.transactions |> Map.put_new(id, transact),
-                  last_committed_id: id
-      }}
+      {:ok,
+       %{
+         history
+         | transactions: history.transactions |> Map.put_new(id, transact),
+           last_committed_id: id
+       }}
     else
       {:balanced, false} -> {:error, :unbalanced_transaction}
     end
   end
 
-  def transactions_from(%__MODULE__{transactions: transactions} = history, id) do
-    %__MODULE__{
-      transactions:
-        transactions
-        |> Map.filter(fn {k, v} -> k >= id end)
-    }
+  def chunk(%__MODULE__{transactions: transactions}) do
+    Chunk.build(transactions)
+  end
+
+  def chunk(%__MODULE__{transactions: transactions} = history, opts) when is_list(opts) do
+    case {Keyword.get(opts, :from), Keyword.get(opts, :until)} do
+      {from, nil} ->
+        Chunk.build(transactions |> Map.filter(fn {k, _} -> k >= from end))
+
+      {nil, until} ->
+        Chunk.build(transactions |> Map.filter(fn {k, _} -> k <= until end))
+
+      {from, until} ->
+        Chunk.build(transactions |> Map.filter(fn {k, _} -> k >= from and k <= until end))
+    end
   end
 end

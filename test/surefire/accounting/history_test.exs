@@ -97,8 +97,8 @@ defmodule Surefire.Accounting.HistoryTest do
     end
   end
 
-  describe "transactions_from/2" do
-    test "returns a partial history with transactions from a certain id (included)" do
+  describe "chunk/2" do
+    setup do
       t1 =
         Transaction.build("test description")
         |> Transaction.with_debit(:test_account_a, 1)
@@ -124,29 +124,73 @@ defmodule Surefire.Accounting.HistoryTest do
         t2c = hhhh.transactions[id2]
         t3c = hhhhhh.transactions[id3]
 
-        assert History.transactions_from(hhhhhh, id3) == %History{transactions: %{id3 => t3c}}
-
-        assert History.transactions_from(hhhhhh, id2) == %History{
-                 transactions: %{
-                   id2 => t2c,
-                   id3 => t3c
-                 }
-               }
-
-        assert History.transactions_from(hhhhhh, id1) == %History{
-                 transactions: %{
-                   id1 => t1c,
-                   id2 => t2c,
-                   id3 => t3c
-                 }
-               }
-
-        assert hhhhhh.transactions == %{
-                 id1 => t1c,
-                 id2 => t2c,
-                 id3 => t3c
-               }
+        %{history: hhhhhh, ids: [id3, id2, id1], transactions: [t3c, t2c, t1c]}
       end
+    end
+
+    test "returns a history chunk between bounds, bounds included",
+         %{history: history, ids: [id3, id2, id1], transactions: [t3c, t2c, t1c]} do
+      assert history.transactions == %{
+               id1 => t1c,
+               id2 => t2c,
+               id3 => t3c
+             }
+
+      last_match = %History.Chunk{
+        from: id3,
+        until: id3,
+        transactions: %{id3 => t3c}
+      }
+
+      assert History.chunk(history, from: id3) == last_match
+      assert History.chunk(history, from: id3, until: id3) == last_match
+
+      middle_last = %History.Chunk{
+        from: id2,
+        until: id3,
+        transactions: %{
+          id2 => t2c,
+          id3 => t3c
+        }
+      }
+
+      assert History.chunk(history, from: id2) == middle_last
+      assert History.chunk(history, from: id2, until: id3) == middle_last
+
+      all_three = %History.Chunk{
+        from: id1,
+        until: id3,
+        transactions: %{
+          id1 => t1c,
+          id2 => t2c,
+          id3 => t3c
+        }
+      }
+
+      assert History.chunk(history, from: id1) == all_three
+      assert History.chunk(history, until: id3) == all_three
+      assert History.chunk(history, from: id1, until: id3) == all_three
+
+      first_middle = %History.Chunk{
+        from: id1,
+        until: id2,
+        transactions: %{
+          id1 => t1c,
+          id2 => t2c
+        }
+      }
+
+      assert History.chunk(history, until: id2) == first_middle
+      assert History.chunk(history, from: id1, until: id2) == first_middle
+
+      first_match = %History.Chunk{
+        from: id1,
+        until: id1,
+        transactions: %{id1 => t1c}
+      }
+
+      assert History.chunk(history, until: id1) == first_match
+      assert History.chunk(history, from: id1, until: id1) == first_match
     end
   end
 end

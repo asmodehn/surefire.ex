@@ -11,7 +11,4 @@ defmodule Surefire.Accounting do
   """
 
   alias Surefire.Accounting.{History, Transaction}
-
-
-
 end
