@@ -1,4 +1,6 @@
 defmodule Surefire.Accounting.Account.Balance do
+  @moduledoc false
+
   alias Surefire.Accounting.Transaction
 
   @derive Inspect
@@ -69,11 +71,6 @@ defmodule Surefire.Accounting.Account do
     }
   end
 
-  # TODO : better interface :
-  # - Asset (closing -> return to parent) & Expenses (closing -> stop paying it) (debit)
-  # - Liability (closing -> - return to parent) & Revenue (closing -> stop getting it) (credit)
-  # Pb : here or at higher lever of abstraction (with player / avatar) ??
-
   # TODO :is debit/credit type only important for balance ? or really useful as part of data ??
   def balance(%__MODULE__{type: :debit, balance: balance}) do
     balance.debits - balance.credits
@@ -96,32 +93,6 @@ defmodule Surefire.Accounting.Account do
       when entry.transaction_id != nil and entry_account_id == account_id do
     %{account | entries: entries ++ [entry], balance: Balance.update(balance, entry)}
   end
-
-  #  # TODO : review this and put some (all?) of it in Book (expected caller)
-  #  @doc ~s"""
-  #  reflect/3 modifies the account to add entries for a transaction.
-  #  However, to avoid processing N times the same transactions, this transaction must be
-  #  more recent (relies on lexical order of transaction_id) than the previous one.
-  #  => reflect must therefore be called onto the transaction in order of their ids.
-  #  Otherwise, the transaction is simply ignored.
-  #  """
-  #  def reflect(
-  #        %__MODULE__{last_seen_transaction: last_transact} = account,
-  #        %Transaction{} = transaction,
-  #        transaction_id
-  #      )
-  #      when last_transact < transaction_id do
-  #    updated_account =
-  #      for e <-
-  #            transaction
-  #            |> Transaction.as_entries(transaction_id)
-  #            |> Enum.filter(fn e -> e.account == account.id end),
-  #          reduce: account do
-  #        acc -> acc |> append(e)
-  #      end
-  #
-  #    %{updated_account | last_seen_transaction: transaction_id}
-  #  end
 
   defimpl String.Chars do
     def to_string(%Surefire.Accounting.Account{} = account) do

@@ -3,8 +3,6 @@ defmodule Surefire.Accounting.History.Chunk do
   Data of a chunk of transaction history
   """
 
-  alias Surefire.Accounting.LogServer
-
   defstruct from: nil,
             until: nil,
             transactions: %{}
@@ -58,7 +56,7 @@ defmodule Surefire.Accounting.History do
   end
 
   @spec new_transaction_id(t()) :: {String.t(), t()}
-  def new_transaction_id(%__MODULE__{id_generator: id_gen} = history) do
+  def new_transaction_id(%__MODULE__{id_generator: id_gen} = history) when id_gen != nil do
     {next_gen, ulid} = :ulid.generate(id_gen)
     {ulid, %{history | id_generator: next_gen}}
     # CAREFUL: might not be monotonic because system_time might not be (but very likely unique...)
@@ -67,12 +65,6 @@ defmodule Surefire.Accounting.History do
     # => Pb: this makes it dependent on the node where it is generated -> not cross-node comparable
     # => Build an process interface around, maybe similar to https://github.com/jur0/eid
     #   OR modify/extend the content of the id as in https://github.com/fogfish/uid or https://github.com/okeuday/uuid
-  end
-
-  def new_transaction_id(%__MODULE__{id_generator: nil} = history) do
-    # in this case we want to prevent  generating(we doonot know where this copy comes from ??)
-    # probably generated from transactions_from/n ??
-    raise RuntimeError, message: "Attempt to create id from History Clone"
   end
 
   @spec commit(t(), String.t(), Transaction.t()) :: {:ok, t()} | {:error, any()}
@@ -87,7 +79,7 @@ defmodule Surefire.Accounting.History do
   end
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
-    with {:balanced, true} <- {:balanced, Transaction.verify_balanced(transact)} do
+    if Transaction.verify_balanced(transact) do
       {:ok,
        %{
          history
@@ -95,7 +87,7 @@ defmodule Surefire.Accounting.History do
            last_committed_id: id
        }}
     else
-      {:balanced, false} -> {:error, :unbalanced_transaction}
+      {:error, :unbalanced_transaction}
     end
   end
 
@@ -103,7 +95,7 @@ defmodule Surefire.Accounting.History do
     Chunk.build(transactions)
   end
 
-  def chunk(%__MODULE__{transactions: transactions} = history, opts) when is_list(opts) do
+  def chunk(%__MODULE__{transactions: transactions}, opts) when is_list(opts) do
     case {Keyword.get(opts, :from), Keyword.get(opts, :until)} do
       {from, nil} ->
         Chunk.build(transactions |> Map.filter(fn {k, _} -> k >= from end))

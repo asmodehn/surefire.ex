@@ -62,23 +62,20 @@ defmodule Surefire.Accounting.LedgerServer do
       updated_book =
         for entry <- transaction |> Transaction.as_entries(transaction_id), reduce: book do
           book ->
-            cond do
-              entry.account in Map.keys(book.accounts) ->
-                %{
-                  book
-                  | accounts:
-                      book.accounts
-                      |> Map.update!(entry.account, &Account.append(&1, entry))
-                }
-
-              true ->
-                raise RuntimeError, message: "#{entry.account} doesnt exists!"
-                # TODO : auto create the account or error ?
-                # TODO : skip the transaction or not ? (should be relying on this ledger!)
+            if entry.account in Map.keys(book.accounts) do
+              %{
+                book
+                | accounts:
+                    book.accounts
+                    |> Map.update!(entry.account, &Account.append(&1, entry))
+              }
+            else
+              raise RuntimeError, message: "#{entry.account} doesnt exists!"
+              # TODO : skip the transaction if account doesnt exist.
+              # Transaction with account matching should be enforced on commit (not on read !)
             end
         end
 
-      # TODO : handle keyerror
       %{updated_book | last_reflected: transaction_id}
     end
 
@@ -101,7 +98,6 @@ defmodule Surefire.Accounting.LedgerServer do
   alias Surefire.Accounting.{LogServer, History, Account, Transaction}
 
   use GenServer
-  # TODO : use GenStage instead ? most of the functionality already done ??
 
   # TODO : implement using, so the user (player, and game modules)
   #        can do `use LedgerServer, history: pid_atom`
@@ -110,8 +106,11 @@ defmodule Surefire.Accounting.LedgerServer do
   # Client
 
   def start_link(history_pid, _opts \\ []) do
-    # TODO : make sure the history is started...
-    GenServer.start_link(__MODULE__, history_pid)
+    if Process.alive?(history_pid) do
+      GenServer.start_link(__MODULE__, history_pid)
+    else
+      raise RuntimeError, message: "ERROR: #{history_pid} is not started !"
+    end
   end
 
   def open_account(pid, id, name, :debit) do
@@ -141,17 +140,17 @@ defmodule Surefire.Accounting.LedgerServer do
   @impl true
   def handle_call({:open, aid, aname, :debit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_debit_account(aid, aname)
-
+    # TODO : open account on log_server to accept transactions with it
     {:reply, :ok, {hpid, chunk, updated_book}}
   end
 
   @impl true
   def handle_call({:open, aid, aname, :credit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_credit_account(aid, aname)
+    # TODO : open account on log_server to accept transactions with it
 
     {:reply, :ok, {hpid, chunk, updated_book}}
   end
-
 
   @impl true
   def handle_call({:balance, aid}, _from, {hpid, last_chunk, book}) do
@@ -159,7 +158,7 @@ defmodule Surefire.Accounting.LedgerServer do
     chunk = new_chunk(hpid, last_chunk)
     updated_book = book |> Book.reflect(chunk)
     # dropping cache ? we dont need it any longer...
-    {:reply, updated_book.accounts[aid] |> Account.balance(), {hpid, chunk , updated_book}}
+    {:reply, updated_book.accounts[aid] |> Account.balance(), {hpid, chunk, updated_book}}
   end
 
   @impl true
@@ -173,7 +172,6 @@ defmodule Surefire.Accounting.LedgerServer do
 
   # TODO: close account
 
-
   defp new_chunk(hpid, nil) do
     LogServer.chunk(hpid, from: nil)
   end
@@ -181,5 +179,4 @@ defmodule Surefire.Accounting.LedgerServer do
   defp new_chunk(hpid, %History.Chunk{} = last_chunk) do
     LogServer.chunk(hpid, from: last_chunk.until)
   end
-
 end
