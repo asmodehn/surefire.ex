@@ -9,8 +9,6 @@ defmodule Surefire.Accounting.LogServer do
   - represented (cached) in ledger accounts entries
   other functions to retrieve account balances, and deduce possible actions...
 
-
-
   """
 
   alias Surefire.Accounting.{History, Transaction}
@@ -38,7 +36,7 @@ defmodule Surefire.Accounting.LogServer do
   end
 
   def chunk(pid, opts \\ [from: nil, until: nil]) do
-    # TODO : Stream instead ??
+    # TODO : some kind of Stream instead ??
     ftid = Keyword.get(opts, :from)
     utid = Keyword.get(opts, :until)
 
@@ -47,6 +45,18 @@ defmodule Surefire.Accounting.LogServer do
 
   def last_committed(pid) do
     GenServer.call(pid, {:last_committed})
+  end
+
+  def open_account(pid, apid, aid) do
+    GenServer.call(pid, {:open, apid, aid})
+  end
+
+  def close_account(pid, apid, aid) do
+    GenServer.call(pid, {:close, apid, aid})
+  end
+
+  def accounts(pid, apid) do
+    GenServer.call(pid, {:accounts, apid})
   end
 
   # Server (callbacks)
@@ -73,5 +83,24 @@ defmodule Surefire.Accounting.LogServer do
   @impl true
   def handle_call({:last_committed}, _from, history) do
     {:reply, history.last_committed_id, history}
+  end
+
+  @impl true
+  def handle_call({:open, apid, aid}, _from, history) do
+    updated = history |> History.open_account(apid, aid)
+
+    {:reply, :ok, updated}
+  end
+
+  @impl true
+  def handle_call({:close, apid, aid}, _from, history) do
+    updated = history |> History.close_account(apid, aid)
+
+    {:reply, :ok, updated}
+  end
+
+  @impl true
+  def handle_call({:accounts, apid}, _from, history) do
+    {:reply, history.accounts[apid], history}
   end
 end

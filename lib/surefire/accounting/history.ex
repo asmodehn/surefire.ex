@@ -42,12 +42,14 @@ defmodule Surefire.Accounting.History do
 
   defstruct id_generator: nil,
             transactions: %{},
+            accounts: %{},
             last_committed_id: nil
 
   @type t :: %__MODULE__{
           id_generator: any,
           # TODO : redesign this to be a `LogChunk` although the biggest/original one...
           transactions: %{String.t() => Transaction.t()},
+          accounts: %{pid => atom},
           last_committed_id: nil | String.t()
         }
 
@@ -80,6 +82,7 @@ defmodule Surefire.Accounting.History do
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
     if Transaction.verify_balanced(transact) do
+      # TODO : verify ALL accounts exist (ledger wont do it any longer)
       {:ok,
        %{
          history
@@ -106,5 +109,29 @@ defmodule Surefire.Accounting.History do
       {from, until} ->
         Chunk.build(transactions |> Map.filter(fn {k, _} -> k >= from and k <= until end))
     end
+  end
+
+  def open_account(%__MODULE__{accounts: accounts} = history, pid, aid) do
+    %{
+      history
+      | accounts:
+          accounts
+          |> Map.update(pid, [aid], fn
+            # prevent repetition
+            ids -> if aid in ids, do: ids, else: [aid | ids]
+          end)
+    }
+
+    # TODO ?? marking creation of account with special "null" transaction for the account...
+  end
+
+  def close_account(%__MODULE__{accounts: accounts} = history, pid, aid) do
+    %{
+      history
+      | accounts:
+          accounts
+          |> Map.update!(pid, fn ids -> ids |> List.delete(aid) end)
+          |> Map.reject(fn {_, v} -> v == [] end)
+    }
   end
 end

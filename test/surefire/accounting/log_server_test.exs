@@ -92,4 +92,59 @@ defmodule Surefire.Accounting.LogServerTest do
       assert credits == [bob: 42]
     end
   end
+
+  describe "open_account/3" do
+    setup do
+      {:ok, pid} = LogServer.start_link()
+
+      %{accounting_srv: pid}
+    end
+
+    test "opens an account and accepts matching transactions",
+         %{accounting_srv: pid} do
+      :ok = LogServer.open_account(pid, self(), :test_account)
+
+      assert LogServer.accounts(pid, self()) == [:test_account]
+      # TODO : test transactions
+    end
+  end
+
+  # TODO: maybe review account management API ?
+  describe "accounts/2" do
+    setup do
+      {:ok, pid} = LogServer.start_link()
+
+      %{accounting_srv: pid}
+    end
+
+    test "list known accounts by the LogServer that are currently open",
+         %{accounting_srv: pid} do
+      :ok = LogServer.open_account(pid, self(), :test_account)
+
+      assert LogServer.accounts(pid, self()) == [:test_account]
+
+      :ok = LogServer.close_account(pid, self(), :test_account)
+
+      assert LogServer.accounts(pid, self()) == nil
+    end
+  end
+
+  describe "close_account/3" do
+    setup do
+      {:ok, pid} = LogServer.start_link()
+
+      %{accounting_srv: pid}
+    end
+
+    test "closes an account and refuses matching transactions",
+         %{accounting_srv: pid} do
+      :ok = LogServer.open_account(pid, self(), :test_account)
+
+      assert LogServer.accounts(pid, self()) == [:test_account]
+
+      :ok = LogServer.close_account(pid, self(), :test_account)
+
+      assert LogServer.accounts(pid, self()) == nil
+    end
+  end
 end

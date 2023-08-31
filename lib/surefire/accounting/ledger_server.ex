@@ -32,6 +32,10 @@ defmodule Surefire.Accounting.LedgerServer do
       %{book | accounts: book.accounts |> Map.put(id, Account.new_credit(id, name))}
     end
 
+    def close_account(%__MODULE__{} = book, id) do
+      %{book | accounts: book.accounts |> Map.delete(id)}
+    end
+
     # TODO : review & test this
     def reflect(
           %__MODULE__{last_reflected: last_reflected},
@@ -129,6 +133,10 @@ defmodule Surefire.Accounting.LedgerServer do
     GenServer.call(pid, {:view, account_id})
   end
 
+  def close_account(pid, id) do
+    GenServer.call(pid, {:close, id})
+  end
+
   # Server (callbacks)
 
   @impl true
@@ -140,14 +148,17 @@ defmodule Surefire.Accounting.LedgerServer do
   @impl true
   def handle_call({:open, aid, aname, :debit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_debit_account(aid, aname)
-    # TODO : open account on log_server to accept transactions with it
+
+    :ok = LogServer.open_account(hpid, self(), aid)
+
     {:reply, :ok, {hpid, chunk, updated_book}}
   end
 
   @impl true
   def handle_call({:open, aid, aname, :credit}, _from, {hpid, chunk, book}) do
     updated_book = book |> Book.open_credit_account(aid, aname)
-    # TODO : open account on log_server to accept transactions with it
+
+    :ok = LogServer.open_account(hpid, self(), aid)
 
     {:reply, :ok, {hpid, chunk, updated_book}}
   end
@@ -170,7 +181,14 @@ defmodule Surefire.Accounting.LedgerServer do
     {:reply, updated_book.accounts[aid], {hpid, chunk, updated_book}}
   end
 
-  # TODO: close account
+  @impl true
+  def handle_call({:close, aid}, _from, {hpid, chunk, book}) do
+    updated_book = book |> Book.close_account(aid)
+
+    :ok = LogServer.close_account(hpid, self(), aid)
+
+    {:reply, :ok, {hpid, chunk, updated_book}}
+  end
 
   defp new_chunk(hpid, nil) do
     LogServer.chunk(hpid, from: nil)

@@ -26,15 +26,36 @@ defmodule Surefire.LedgerServerTest do
     end
 
     test "with :debit, creates a debit account",
-         %{biz_server_pid: bizserver_pid} do
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
       :ok = LedgerServer.open_account(bizserver_pid, :test_debit, "Test Debit Account", :debit)
+
+      assert LogServer.accounts(history_pid, bizserver_pid) == [:test_debit]
     end
 
     test "with :credit, creates a credit account",
-         %{
-           biz_server_pid: bizserver_pid
-         } do
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
       :ok = LedgerServer.open_account(bizserver_pid, :test_credit, "Test Credit Account", :credit)
+      assert LogServer.accounts(history_pid, bizserver_pid) == [:test_credit]
+    end
+  end
+
+  describe "close_account/2" do
+    setup do
+      with history_pid <- start_supervised!(LogServer),
+           bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
+        %{history_pid: history_pid, biz_server_pid: bizserver_pid}
+      end
+    end
+
+    test "closes an existing account",
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
+      :ok = LedgerServer.open_account(bizserver_pid, :test_debit, "Test Debit Account", :debit)
+
+      assert LogServer.accounts(history_pid, bizserver_pid) == [:test_debit]
+
+      :ok = LedgerServer.close_account(bizserver_pid, :test_debit)
+
+      assert LogServer.accounts(history_pid, bizserver_pid) == nil
     end
   end
 

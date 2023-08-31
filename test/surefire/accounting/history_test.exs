@@ -16,6 +16,8 @@ defmodule Surefire.Accounting.HistoryTest do
   end
 
   describe "commit/2" do
+    # TODO : verify transaction is refused if one account doesnt exists
+    # TODO : verify transaction is accepted if all accounts exist
     test "stores a balanced transaction in the history and remember its id" do
       t =
         Transaction.build("test description")
@@ -191,6 +193,51 @@ defmodule Surefire.Accounting.HistoryTest do
 
       assert History.chunk(history, until: id1) == first_match
       assert History.chunk(history, from: id1, until: id1) == first_match
+    end
+  end
+
+  describe "open_account/2" do
+    test "register another account in the history for this pid" do
+      h = History.new() |> History.open_account(self(), :new_account)
+
+      assert self() in Map.keys(h.accounts)
+      assert h.accounts[self()] == [:new_account]
+
+      h_updated = h |> History.open_account(self(), :another_one)
+
+      assert h_updated.accounts[self()] == [:another_one, :new_account]
+    end
+
+    test "prevent account unicity for a pid" do
+      h = History.new() |> History.open_account(self(), :new_account)
+
+      assert self() in Map.keys(h.accounts)
+      assert h.accounts[self()] == [:new_account]
+
+      h_updated = h |> History.open_account(self(), :new_account)
+
+      assert h_updated.accounts[self()] == [:new_account]
+    end
+  end
+
+  describe "close_account/2" do
+    test "unregister the account in the history" do
+      h = History.new() |> History.open_account(self(), :new_account)
+
+      assert self() in Map.keys(h.accounts)
+      assert h.accounts[self()] == [:new_account]
+
+      h_updated = h |> History.open_account(self(), :another_one)
+
+      assert h_updated.accounts[self()] == [:another_one, :new_account]
+
+      h_again = h_updated |> History.close_account(self(), :another_one)
+
+      assert h_again.accounts[self()] == [:new_account]
+
+      h_empty = h_again |> History.close_account(self(), :new_account)
+
+      assert self() not in Map.keys(h_empty.accounts)
     end
   end
 end
