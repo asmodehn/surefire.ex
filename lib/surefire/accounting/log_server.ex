@@ -106,8 +106,6 @@ defmodule Surefire.Accounting.LogServer do
 
       true ->
         {tid, history} = History.new_transaction_id(history)
-        # TODO : verify transaction valid (balanced)
-        # used to be done in the history itself.
         {:ok, updated_history} = history |> History.commit(tid, transaction)
         {:reply, {:ok, tid}, updated_history}
     end

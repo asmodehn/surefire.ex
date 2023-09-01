@@ -75,9 +75,13 @@ defmodule Surefire.Accounting.LedgerServer do
                     |> Map.update!(entry.account, &Account.append(&1, entry))
               }
             else
-              raise RuntimeError, message: "#{entry.account} doesnt exists!"
-              # TODO : skip the transaction if account doesnt exist.
-              # Transaction with account matching should be enforced on commit (not on read !)
+              # skip the transaction if account doesnt exist.
+              # Transaction with account matching should be enforced on commit, not on read !
+              book
+              # TODO : maybe an auto-creation option ??
+              # Seems we may have two usecases:
+              # - intentionally filterout accounts we do not care about,
+              # - potentially see accounts we did not know about...
             end
         end
 

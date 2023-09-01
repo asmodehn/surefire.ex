@@ -12,7 +12,18 @@ defmodule Surefire.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       # [warnings_as_errors: true],
       elixirc_options: [],
-      deps: deps()
+      deps: deps(),
+
+      # Docs
+      name: "Surefire",
+      source_url: "https://github.com/asmodehn/Surefire",
+      #    homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
+      docs: [
+        # The main page in the docs
+        main: "Surefire",
+        #      logo: "path/to/logo.png",
+        extras: ["README.md"]
+      ]
     ]
   end
 
@@ -47,7 +58,8 @@ defmodule Surefire.MixProject do
 
       # dev tools
       {:committee, "~> 1.0.0", only: :dev, runtime: false},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
 end
