@@ -42,7 +42,7 @@ defmodule Surefire.Accounting.History do
 
   defstruct id_generator: nil,
             transactions: %{},
-            # TODO : MapSet of tuples {pid, account_id} instead ?
+            # TODO : MapSet of tuples {pid, account_id} instead ? How to search in it ?
             accounts: %{},
             last_committed_id: nil
 
@@ -50,7 +50,8 @@ defmodule Surefire.Accounting.History do
           id_generator: any,
           # TODO : redesign this to be a `LogChunk` although the biggest/original one...
           transactions: %{String.t() => Transaction.t()},
-          accounts: %{pid => atom},
+          # TODO : MapSet instead ??
+          accounts: %{pid => [atom]},
           last_committed_id: nil | String.t()
         }
 
@@ -82,17 +83,12 @@ defmodule Surefire.Accounting.History do
   end
 
   def commit(%__MODULE__{} = history, id, %Transaction{date: _date} = transact) do
-    if Transaction.verify_balanced(transact) do
-      # TODO : verify ALL accounts exist (ledger wont do it any longer)
-      {:ok,
-       %{
-         history
-         | transactions: history.transactions |> Map.put_new(id, transact),
-           last_committed_id: id
-       }}
-    else
-      {:error, :unbalanced_transaction}
-    end
+    {:ok,
+     %{
+       history
+       | transactions: history.transactions |> Map.put_new(id, transact),
+         last_committed_id: id
+     }}
   end
 
   def chunk(%__MODULE__{transactions: transactions}) do

@@ -23,7 +23,7 @@ defmodule Surefire.Accounting.LogServer do
   end
 
   defmodule UnbalancedTransaction do
-    defexception message: "Transaction is unbalanced"
+    defexception message: "Transaction is unbalanced", transaction: nil
   end
 
   alias Surefire.Accounting.{History, Transaction}
@@ -42,6 +42,7 @@ defmodule Surefire.Accounting.LogServer do
     # Note: transactions are safe to transfer around: atomic event-like / message-like
     case GenServer.call(pid, {:commit, transaction}) do
       {:error, %UnknownAccount{} = ua} -> raise ua
+      {:error, %UnbalancedTransaction{} = ut} -> raise ut
       {:ok, tid} -> tid
     end
   end
@@ -99,6 +100,9 @@ defmodule Surefire.Accounting.LogServer do
 
       absent_debited != [] ->
         {:reply, {:error, %UnknownAccount{account: absent_debited}}, history}
+
+      not Transaction.verify_balanced(transaction) ->
+        {:reply, {:error, %UnbalancedTransaction{transaction: transaction}}, history}
 
       true ->
         {tid, history} = History.new_transaction_id(history)

@@ -39,17 +39,6 @@ defmodule Surefire.Accounting.HistoryTest do
       assert committed["transac_id"].credit[self()] == [test_account_b: 42]
     end
 
-    test "errors if an unbalanced transaction is passed in" do
-      t =
-        Transaction.build("test description")
-        |> Transaction.with_debit(self(), :test_account_a, 42)
-        |> Transaction.with_credit(self(), :test_account_b, 33)
-
-      assert not Transaction.verify_balanced(t)
-
-      {:error, :unbalanced_transaction} = History.commit(%History{}, "transac_id", t)
-    end
-
     test "errors if an existing key is passed in" do
       t =
         Transaction.build("test description")

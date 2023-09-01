@@ -97,7 +97,7 @@ defmodule Surefire.Accounting.LogServerTest do
     end
   end
 
-  describe "transfer/4" do
+  describe "commit/4" do
     setup do
       {:ok, pid} = LogServer.start_link()
 
@@ -153,6 +153,20 @@ defmodule Surefire.Accounting.LogServerTest do
         |> Transaction.with_credit(self(), :charlie, 42)
 
       assert_raise(LogServer.UnknownAccount, fn ->
+        LogServer.commit(accounting_srv, t1)
+      end)
+    end
+
+    test "prevent recording if the transaction is unbalanced",
+         %{accounting_srv: accounting_srv} do
+      LogServer.accounts(accounting_srv, self())
+
+      t1 =
+        Transaction.build("Transfer 42 from alice to bob")
+        |> Transaction.with_debit(self(), :alice, 42)
+        |> Transaction.with_credit(self(), :bob, 43)
+
+      assert_raise(LogServer.UnbalancedTransaction, fn ->
         LogServer.commit(accounting_srv, t1)
       end)
     end
