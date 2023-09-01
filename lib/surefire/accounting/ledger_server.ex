@@ -64,7 +64,8 @@ defmodule Surefire.Accounting.LedgerServer do
         )
         when last_reflected < transaction_id do
       updated_book =
-        for entry <- transaction |> Transaction.as_entries(transaction_id), reduce: book do
+        for entry <- transaction |> Transaction.as_entries(transaction_id, self()),
+            reduce: book do
           book ->
             if entry.account in Map.keys(book.accounts) do
               %{
@@ -137,6 +138,22 @@ defmodule Surefire.Accounting.LedgerServer do
     GenServer.call(pid, {:close, id})
   end
 
+  # TODO : various transaction creation
+  # depending on possible **internal** operations for this ledger...
+  def transfer(pid, from_account, to_account, amount) do
+    transaction =
+      Transaction.build("Transfer #{amount} from #{from_account} to #{to_account}")
+      |> Transaction.with_debit(pid, from_account, amount)
+      |> Transaction.with_credit(pid, to_account, amount)
+
+    # Note: transactions are safe to transfer around: atomic event-like / message-like
+    tid = GenServer.call(pid, {:transfer, transaction})
+
+    tid
+  end
+
+  # TODO : creation of transactions between different ledgers...
+
   # Server (callbacks)
 
   @impl true
@@ -188,6 +205,12 @@ defmodule Surefire.Accounting.LedgerServer do
     :ok = LogServer.close_account(hpid, self(), aid)
 
     {:reply, :ok, {hpid, chunk, updated_book}}
+  end
+
+  @impl true
+  def handle_call({:transfer, %Transaction{} = transaction}, _from, {hpid, chunk, book}) do
+    tid = LogServer.commit(hpid, transaction)
+    {:reply, tid, {hpid, chunk, book}}
   end
 
   defp new_chunk(hpid, nil) do

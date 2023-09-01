@@ -15,14 +15,35 @@ defmodule Surefire.Accounting.LogServerTest do
     setup do
       {:ok, pid} = LogServer.start_link()
 
+      LogServer.open_account(pid, self(), :alice)
+      LogServer.open_account(pid, self(), :bob)
+
+      LogServer.open_account(pid, self(), :charlie)
       %{history_srv: pid}
     end
 
     test "retrieves partial history from the accounting Server history",
          %{history_srv: history_srv} do
-      t1id = LogServer.transfer(:alice, :bob, 42, history_srv)
-      t2id = LogServer.transfer(:bob, :charlie, 33, history_srv)
-      t3id = LogServer.transfer(:alice, :charlie, 51, history_srv)
+      t1 =
+        Transaction.build("Transfer 42 from alice to bob")
+        |> Transaction.with_debit(self(), :alice, 42)
+        |> Transaction.with_credit(self(), :bob, 42)
+
+      t1id = LogServer.commit(history_srv, t1)
+
+      t2 =
+        Transaction.build("Transfer 33 from bob to charlie")
+        |> Transaction.with_debit(self(), :bob, 33)
+        |> Transaction.with_credit(self(), :charlie, 33)
+
+      t2id = LogServer.commit(history_srv, t2)
+
+      t3 =
+        Transaction.build("Transfer 51 from alice to charlie")
+        |> Transaction.with_debit(self(), :alice, 51)
+        |> Transaction.with_credit(self(), :charlie, 51)
+
+      t3id = LogServer.commit(history_srv, t3)
 
       %History.Chunk{
         from: ^t2id,
@@ -39,8 +60,8 @@ defmodule Surefire.Accounting.LogServerTest do
       } = retrieved[t2id]
 
       assert t2_descr == "Transfer 33 from bob to charlie"
-      assert t2_debits == [bob: 33]
-      assert t2_credits == [charlie: 33]
+      assert t2_debits == %{self() => [bob: 33]}
+      assert t2_credits == %{self() => [charlie: 33]}
 
       %Transaction{
         description: t3_descr,
@@ -49,8 +70,8 @@ defmodule Surefire.Accounting.LogServerTest do
       } = retrieved[t3id]
 
       assert t3_descr == "Transfer 51 from alice to charlie"
-      assert t3_debits == [alice: 51]
-      assert t3_credits == [charlie: 51]
+      assert t3_debits == %{self() => [alice: 51]}
+      assert t3_credits == %{self() => [charlie: 51]}
     end
   end
 
@@ -58,12 +79,19 @@ defmodule Surefire.Accounting.LogServerTest do
     setup do
       {:ok, pid} = LogServer.start_link()
 
+      LogServer.open_account(pid, self(), :alice)
+      LogServer.open_account(pid, self(), :bob)
       %{accounting_srv: pid}
     end
 
     test "return the last committed transaction id",
          %{accounting_srv: accounting_srv} do
-      t1id = LogServer.transfer(:alice, :bob, 42, accounting_srv)
+      t1 =
+        Transaction.build("Transfer 42 from :alice to :bob")
+        |> Transaction.with_debit(self(), :alice, 42)
+        |> Transaction.with_credit(self(), :bob, 42)
+
+      t1id = LogServer.commit(accounting_srv, t1)
 
       assert LogServer.last_committed(accounting_srv) == t1id
     end
@@ -73,12 +101,21 @@ defmodule Surefire.Accounting.LogServerTest do
     setup do
       {:ok, pid} = LogServer.start_link()
 
+      LogServer.open_account(pid, self(), :alice)
+      LogServer.open_account(pid, self(), :bob)
       %{accounting_srv: pid}
     end
 
     test "records the transaction in the Accounting server history",
          %{accounting_srv: accounting_srv} do
-      tid = LogServer.transfer(:alice, :bob, 42, accounting_srv)
+      LogServer.accounts(accounting_srv, self())
+
+      t1 =
+        Transaction.build("Transfer 42 from alice to bob")
+        |> Transaction.with_debit(self(), :alice, 42)
+        |> Transaction.with_credit(self(), :bob, 42)
+
+      tid = LogServer.commit(accounting_srv, t1)
 
       # TODO : test date, once the date function is exposed in history server...
       %Transaction{
@@ -88,8 +125,36 @@ defmodule Surefire.Accounting.LogServerTest do
       } = LogServer.chunk(accounting_srv).transactions[tid]
 
       assert description == "Transfer 42 from alice to bob"
-      assert debits == [alice: 42]
-      assert credits == [bob: 42]
+      assert debits == %{self() => [alice: 42]}
+      assert credits == %{self() => [bob: 42]}
+    end
+
+    test "prevent recording if one of the debit accounts doesnt exist",
+         %{accounting_srv: accounting_srv} do
+      LogServer.accounts(accounting_srv, self())
+
+      t1 =
+        Transaction.build("Transfer 42 from alice to bob")
+        |> Transaction.with_debit(self(), :charlie, 42)
+        |> Transaction.with_credit(self(), :bob, 42)
+
+      assert_raise(LogServer.UnknownAccount, fn ->
+        LogServer.commit(accounting_srv, t1)
+      end)
+    end
+
+    test "prevent recording if one of the credit accounts doesnt exist",
+         %{accounting_srv: accounting_srv} do
+      LogServer.accounts(accounting_srv, self())
+
+      t1 =
+        Transaction.build("Transfer 42 from alice to bob")
+        |> Transaction.with_debit(self(), :alice, 42)
+        |> Transaction.with_credit(self(), :charlie, 42)
+
+      assert_raise(LogServer.UnknownAccount, fn ->
+        LogServer.commit(accounting_srv, t1)
+      end)
     end
   end
 

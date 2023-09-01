@@ -40,70 +40,88 @@ defmodule Surefire.Accounting.Transaction do
 
   defstruct date: nil,
             description: "",
-            debit: [],
-            credit: []
+            debit: %{},
+            credit: %{}
 
   @type t :: %__MODULE__{
           date: DateTime.t(),
           description: String.t(),
-          debit: Keyword.t(),
-          credit: Keyword.t()
+          debit: %{pid => Keyword.t()},
+          credit: %{pid => Keyword.t()}
         }
 
   def build(description) do
     %__MODULE__{description: description}
   end
 
-  def with_debit(%__MODULE__{debit: debits} = transact, account_id, amount)
-      when is_nil(transact.date) and is_atom(account_id) and is_integer(amount) do
-    %{transact | debit: debits ++ [{account_id, amount}]}
+  def with_debit(%__MODULE__{debit: debits} = transact, ledger_pid, account_id, amount)
+      when is_nil(transact.date) and is_pid(ledger_pid) and is_atom(account_id) do
+    %{
+      transact
+      | debit:
+          debits
+          |> Map.update(
+            ledger_pid,
+            [{account_id, amount}],
+            fn {p, d} -> d ++ [{account_id, amount}] end
+          )
+    }
   end
 
-  def with_credit(%__MODULE__{credit: credits} = transact, account_id, amount)
-      when is_nil(transact.date) and is_atom(account_id) and is_integer(amount) do
-    %{transact | credit: credits ++ [{account_id, amount}]}
+  def with_credit(%__MODULE__{credit: credits} = transact, ledger_pid, account_id, amount)
+      when is_nil(transact.date) and is_pid(ledger_pid) and is_atom(account_id) do
+    %{
+      transact
+      | credit:
+          credits
+          |> Map.update(
+            ledger_pid,
+            [{account_id, amount}],
+            fn {p, d} -> d ++ [{account_id, amount}] end
+          )
+    }
   end
 
-  # API attempt( from the point of view of player -> avatars
-  def funding_to(
-        amount,
-        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-        ledger_asset_account_id \\ :assets
-      ) do
-    build("Funding to #{acc_name}")
-    |> with_credit(ledger_asset_account_id, amount)
-    |> with_debit(avatar_asset_account.id, amount)
-  end
-
-  def repayment_from(
-        amount,
-        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-        ledger_asset_account_id \\ :assets
-      ) do
-    build("Repayment from #{acc_name}")
-    |> with_debit(ledger_asset_account_id, amount)
-    |> with_credit(avatar_asset_account.id, amount)
-  end
-
-  def earning_at(
-        amount,
-        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-        ledger_revenue_account_id \\ :revenue
-      ) do
-    build("#{acc_name} Earning record")
-    |> with_credit(ledger_revenue_account_id, amount)
-    |> with_debit(avatar_asset_account.id, amount)
-  end
-
-  def collect_from(
-        amount,
-        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-        ledger_revenue_account_id \\ :revenue
-      ) do
-    build("#{acc_name} Earning collection")
-    |> with_debit(ledger_revenue_account_id, 12)
-    |> with_credit(avatar_asset_account.id, 12)
-  end
+  #  # API attempt( from the point of view of player -> avatars
+  #  def funding_to(
+  #        amount,
+  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+  #        ledger_asset_account_id \\ :assets
+  #      ) do
+  #    build("Funding to #{acc_name}")
+  #    |> with_credit(ledger_asset_account_id, amount)
+  #    |> with_debit(avatar_asset_account.id, amount)
+  #  end
+  #
+  #  def repayment_from(
+  #        amount,
+  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+  #        ledger_asset_account_id \\ :assets
+  #      ) do
+  #    build("Repayment from #{acc_name}")
+  #    |> with_debit(ledger_asset_account_id, amount)
+  #    |> with_credit(avatar_asset_account.id, amount)
+  #  end
+  #
+  #  def earning_at(
+  #        amount,
+  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+  #        ledger_revenue_account_id \\ :revenue
+  #      ) do
+  #    build("#{acc_name} Earning record")
+  #    |> with_credit(ledger_revenue_account_id, amount)
+  #    |> with_debit(avatar_asset_account.id, amount)
+  #  end
+  #
+  #  def collect_from(
+  #        amount,
+  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
+  #        ledger_revenue_account_id \\ :revenue
+  #      ) do
+  #    build("#{acc_name} Earning collection")
+  #    |> with_debit(ledger_revenue_account_id, 12)
+  #    |> with_credit(avatar_asset_account.id, 12)
+  #  end
 
   # API attempt from the point of view of the game
   # collect_from/2 is the same except with a different process
@@ -125,11 +143,13 @@ defmodule Surefire.Accounting.Transaction do
 
   @spec verify_balanced(t()) :: boolean
   def verify_balanced(%__MODULE__{debit: debits, credit: credits}) do
-    debits |> Enum.map(&elem(&1, 1)) |> Enum.sum() ==
-      credits |> Enum.map(&elem(&1, 1)) |> Enum.sum()
+    # Here we dont care about the pid, or the account id.
+    # We only want that debit and credit values in the keyword lists are balanced
+    debits |> Map.values() |> List.flatten() |> Enum.map(&elem(&1, 1)) |> Enum.sum() ==
+      credits |> Map.values() |> List.flatten() |> Enum.map(&elem(&1, 1)) |> Enum.sum()
   end
 
-  @spec as_entries(t(), String.t()) :: [Entry.t()]
+  @spec as_entries(t(), String.t(), pid) :: [Entry.t()]
   def as_entries(
         %__MODULE__{
           date: date,
@@ -137,9 +157,10 @@ defmodule Surefire.Accounting.Transaction do
           debit: debits,
           credit: credits
         },
-        transaction_id
+        transaction_id,
+        ledger_pid
       ) do
-    for {account, amount} <- debits do
+    for {account, amount} <- Map.get(debits, ledger_pid, []) do
       %Entry{
         transaction_id: transaction_id,
         account: account,
@@ -148,7 +169,7 @@ defmodule Surefire.Accounting.Transaction do
         debit: amount
       }
     end ++
-      for {account, amount} <- credits do
+      for {account, amount} <- Map.get(credits, ledger_pid, []) do
         %Entry{
           transaction_id: transaction_id,
           account: account,
@@ -157,5 +178,27 @@ defmodule Surefire.Accounting.Transaction do
           credit: amount
         }
       end
+  end
+
+  def debited_accounts(%__MODULE__{
+        date: date,
+        description: description,
+        debit: debits,
+        credit: credits
+      }) do
+    debits
+    |> Enum.map(fn {p, ak} -> {p, Keyword.keys(ak)} end)
+    |> Enum.into(%{})
+  end
+
+  def credited_accounts(%__MODULE__{
+        date: date,
+        description: description,
+        debit: debits,
+        credit: credits
+      }) do
+    credits
+    |> Enum.map(fn {p, ak} -> {p, Keyword.keys(ak)} end)
+    |> Enum.into(%{})
   end
 end

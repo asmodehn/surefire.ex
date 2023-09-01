@@ -21,8 +21,8 @@ defmodule Surefire.Accounting.HistoryTest do
     test "stores a balanced transaction in the history and remember its id" do
       t =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 42)
-        |> Transaction.with_credit(:test_account_b, 42)
+        |> Transaction.with_debit(self(), :test_account_a, 42)
+        |> Transaction.with_credit(self(), :test_account_b, 42)
 
       assert Transaction.verify_balanced(t)
 
@@ -35,15 +35,15 @@ defmodule Surefire.Accounting.HistoryTest do
       assert "transac_id" in Map.keys(committed)
       assert up_hist.last_committed_id == "transac_id"
       assert committed["transac_id"].description == "test description"
-      assert committed["transac_id"].debit == [test_account_a: 42]
-      assert committed["transac_id"].credit == [test_account_b: 42]
+      assert committed["transac_id"].debit[self()] == [test_account_a: 42]
+      assert committed["transac_id"].credit[self()] == [test_account_b: 42]
     end
 
     test "errors if an unbalanced transaction is passed in" do
       t =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 42)
-        |> Transaction.with_credit(:test_account_b, 33)
+        |> Transaction.with_debit(self(), :test_account_a, 42)
+        |> Transaction.with_credit(self(), :test_account_b, 33)
 
       assert not Transaction.verify_balanced(t)
 
@@ -53,8 +53,8 @@ defmodule Surefire.Accounting.HistoryTest do
     test "errors if an existing key is passed in" do
       t =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 42)
-        |> Transaction.with_credit(:test_account_b, 42)
+        |> Transaction.with_debit(self(), :test_account_a, 42)
+        |> Transaction.with_credit(self(), :test_account_b, 42)
 
       assert Transaction.verify_balanced(t)
 
@@ -66,8 +66,8 @@ defmodule Surefire.Accounting.HistoryTest do
     test "implicitely adds current date if nil in transaction" do
       t =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 42)
-        |> Transaction.with_credit(:test_account_b, 42)
+        |> Transaction.with_debit(self(), :test_account_a, 42)
+        |> Transaction.with_credit(self(), :test_account_b, 42)
 
       assert Transaction.verify_balanced(t)
       assert is_nil(t.date)
@@ -83,8 +83,8 @@ defmodule Surefire.Accounting.HistoryTest do
     test "keeps date in transaction if already existing" do
       t =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 42)
-        |> Transaction.with_credit(:test_account_b, 42)
+        |> Transaction.with_debit(self(), :test_account_a, 42)
+        |> Transaction.with_credit(self(), :test_account_b, 42)
         |> Transaction.with_current_date(fn -> ~U[2021-02-03 04:05:06.789Z] end)
 
       assert Transaction.verify_balanced(t)
@@ -103,18 +103,18 @@ defmodule Surefire.Accounting.HistoryTest do
     setup do
       t1 =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 1)
-        |> Transaction.with_credit(:test_account_b, 1)
+        |> Transaction.with_debit(self(), :test_account_a, 1)
+        |> Transaction.with_credit(self(), :test_account_b, 1)
 
       t2 =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 2)
-        |> Transaction.with_credit(:test_account_b, 2)
+        |> Transaction.with_debit(self(), :test_account_a, 2)
+        |> Transaction.with_credit(self(), :test_account_b, 2)
 
       t3 =
         Transaction.build("test description")
-        |> Transaction.with_debit(:test_account_a, 3)
-        |> Transaction.with_credit(:test_account_b, 3)
+        |> Transaction.with_debit(self(), :test_account_a, 3)
+        |> Transaction.with_credit(self(), :test_account_b, 3)
 
       with {id1, h} <- History.new_transaction_id(History.new()),
            {:ok, hh} <- History.commit(h, id1, t1),

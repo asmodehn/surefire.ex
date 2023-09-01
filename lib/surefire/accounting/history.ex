@@ -42,6 +42,7 @@ defmodule Surefire.Accounting.History do
 
   defstruct id_generator: nil,
             transactions: %{},
+            # TODO : MapSet of tuples {pid, account_id} instead ?
             accounts: %{},
             last_committed_id: nil
 

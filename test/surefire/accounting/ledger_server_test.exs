@@ -68,7 +68,6 @@ defmodule Surefire.LedgerServerTest do
     end
 
     test "return an existing account, reflecting transactions", %{
-      history_pid: history_pid,
       biz_server_pid: bizserver_pid
     } do
       :ok =
@@ -77,7 +76,7 @@ defmodule Surefire.LedgerServerTest do
       :ok =
         LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
 
-      tid = LogServer.transfer(:test_debit_A, :test_debit_B, 42, history_pid)
+      tid = LedgerServer.transfer(bizserver_pid, :test_debit_A, :test_debit_B, 42)
 
       %Account{
         id: :test_debit_A,
@@ -128,7 +127,6 @@ defmodule Surefire.LedgerServerTest do
     end
 
     test "returns an existing account balance, reflecting transactions", %{
-      history_pid: history_pid,
       biz_server_pid: bizserver_pid
     } do
       :ok =
@@ -137,7 +135,7 @@ defmodule Surefire.LedgerServerTest do
       :ok =
         LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
 
-      _tid = LogServer.transfer(:test_debit_A, :test_debit_B, 42, history_pid)
+      _tid = LedgerServer.transfer(bizserver_pid, :test_debit_A, :test_debit_B, 42)
 
       assert LedgerServer.balance(bizserver_pid, :test_debit_A) == 42
 

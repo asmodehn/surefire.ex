@@ -63,7 +63,7 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       # Note: unbalanced transaction can be reflected
       t =
         Transaction.build("Funding to Alice Assets")
-        |> Transaction.with_debit(:alice, 42)
+        |> Transaction.with_debit(self(), :alice, 42)
 
       updated_book = book |> Book.reflect(t, "a2b_fake_ID")
 
@@ -102,8 +102,8 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "debit transaction for this account",
-        debit: [unknown: 42],
-        credit: []
+        debit: %{self() => [unknown: 42]},
+        credit: %{}
       }
 
       assert_raise(RuntimeError, fn ->
@@ -117,8 +117,8 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "debit transaction for this account",
-        debit: [test_debit: 42],
-        credit: []
+        debit: %{self() => [test_debit: 42]},
+        credit: %{}
       }
 
       updated_book = book |> Book.reflect(test_transact, "fakeID")
@@ -133,8 +133,8 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "credit transaction for this account",
-        debit: [],
-        credit: [test_debit: 42]
+        debit: %{},
+        credit: %{self() => [test_debit: 42]}
       }
 
       updated_book = book |> Book.reflect(test_transact, "fakeID")
@@ -149,8 +149,8 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "credit transaction for this account",
-        debit: [test_credit: 42],
-        credit: []
+        debit: %{self() => [test_credit: 42]},
+        credit: %{}
       }
 
       updated_book = book |> Book.reflect(test_transact, "fakeID")
@@ -165,8 +165,8 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "credit transaction for this account",
-        debit: [],
-        credit: [test_credit: 42]
+        debit: %{},
+        credit: %{self() => [test_credit: 42]}
       }
 
       updated_book = book |> Book.reflect(test_transact, "fakeID")
@@ -180,15 +180,15 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       test_transact = %Transaction{
         date: ~U[2021-02-03 04:05:06.789Z],
         description: "debit transaction for this account",
-        debit: [test_debit: 42],
-        credit: []
+        debit: %{self() => [test_debit: 42]},
+        credit: %{}
       }
 
       ignored_transact = %Transaction{
         date: ~U[2021-02-03 04:05:07.891Z],
         description: "debit transaction for this account",
-        debit: [test_debit: 51],
-        credit: []
+        debit: %{self() => [test_debit: 51]},
+        credit: %{}
       }
 
       updated_book =

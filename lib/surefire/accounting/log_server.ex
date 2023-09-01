@@ -11,6 +11,21 @@ defmodule Surefire.Accounting.LogServer do
 
   """
 
+  #
+  # TODO
+  #  defmodule State do
+  #    defstruct history: %History{},
+  #              chart: %Chart{},
+  #  end
+
+  defmodule UnknownAccount do
+    defexception message: "account is unknown", account: nil
+  end
+
+  defmodule UnbalancedTransaction do
+    defexception message: "Transaction is unbalanced"
+  end
+
   alias Surefire.Accounting.{History, Transaction}
 
   use GenServer
@@ -23,16 +38,12 @@ defmodule Surefire.Accounting.LogServer do
   end
 
   # TODO : various transaction creation depending on possible operations...
-  def transfer(from_account, to_account, amount, pid \\ __MODULE__) do
-    transaction =
-      Transaction.build("Transfer #{amount} from #{from_account} to #{to_account}")
-      |> Transaction.with_debit(from_account, amount)
-      |> Transaction.with_credit(to_account, amount)
-
+  def commit(pid, %Transaction{} = transaction) do
     # Note: transactions are safe to transfer around: atomic event-like / message-like
-    tid = GenServer.call(pid, {:commit, transaction})
-
-    tid
+    case GenServer.call(pid, {:commit, transaction}) do
+      {:error, %UnknownAccount{} = ua} -> raise ua
+      {:ok, tid} -> tid
+    end
   end
 
   def chunk(pid, opts \\ [from: nil, until: nil]) do
@@ -68,9 +79,34 @@ defmodule Surefire.Accounting.LogServer do
 
   @impl true
   def handle_call({:commit, transaction}, _from, history) do
-    {tid, history} = History.new_transaction_id(history)
-    {:ok, updated_history} = history |> History.commit(tid, transaction)
-    {:reply, tid, updated_history}
+    absent_credited =
+      Transaction.credited_accounts(transaction)
+      |> Enum.map(fn {p, al} ->
+        {p, Enum.reject(al, fn a -> a in Map.get(history.accounts, p, []) end)}
+      end)
+      |> Enum.reject(fn {_, al} -> al == [] end)
+
+    absent_debited =
+      Transaction.debited_accounts(transaction)
+      |> Enum.map(fn {p, al} ->
+        {p, Enum.reject(al, fn a -> a in Map.get(history.accounts, p, []) end)}
+      end)
+      |> Enum.reject(fn {_, al} -> al == [] end)
+
+    cond do
+      absent_credited != [] ->
+        {:reply, {:error, %UnknownAccount{account: absent_credited}}, history}
+
+      absent_debited != [] ->
+        {:reply, {:error, %UnknownAccount{account: absent_debited}}, history}
+
+      true ->
+        {tid, history} = History.new_transaction_id(history)
+        # TODO : verify transaction valid (balanced)
+        # used to be done in the history itself.
+        {:ok, updated_history} = history |> History.commit(tid, transaction)
+        {:reply, {:ok, tid}, updated_history}
+    end
   end
 
   @impl true

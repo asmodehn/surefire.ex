@@ -11,4 +11,10 @@ defmodule Surefire.Accounting do
   """
 
   alias Surefire.Accounting.{History, Transaction}
+
+  # TODO : interface to create ( record and view transactions),
+  # by relying on:
+  #   - log server,
+  #   - multiple ledger serverS
+  #   - a chart of accounts to help validate transactions upon commit.
 end
