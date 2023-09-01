@@ -142,6 +142,4 @@ defmodule Surefire.LedgerServerTest do
       assert LedgerServer.balance(bizserver_pid, :test_debit_B) == -42
     end
   end
-
-  # TODO : find a way to use ONE account or N accounts in a ledger in the same way...
 end

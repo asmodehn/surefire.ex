@@ -16,7 +16,7 @@ defmodule Surefire.MixProject do
 
       # Docs
       name: "Surefire",
-      source_url: "https://github.com/asmodehn/Surefire",
+      source_url: "https://github.com/asmodehn/surefire.ex",
       #    homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
       docs: [
         # The main page in the docs

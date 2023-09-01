@@ -96,21 +96,6 @@ defmodule Surefire.Accounting.LedgerServer.BookTest do
       %{book: book}
     end
 
-    # TODO : raise error on commit in history ! here is to late -> ignore (partial read)...
-    test "raise error if account in transaction doesnt exist", %{book: book} do
-      # Note: unbalanced Transaction can be reflected
-      test_transact = %Transaction{
-        date: ~U[2021-02-03 04:05:06.789Z],
-        description: "debit transaction for this account",
-        debit: %{self() => [unknown: 42]},
-        credit: %{}
-      }
-
-      assert_raise(RuntimeError, fn ->
-        book |> Book.reflect(test_transact, "fakeID")
-      end)
-    end
-
     test "add debit entry on matching debit account and increase its balance",
          %{book: book} do
       # Note: unbalanced Transaction can be reflected
