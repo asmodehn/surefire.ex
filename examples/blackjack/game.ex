@@ -18,10 +18,11 @@ defmodule Blackjack.Game do
   alias Blackjack.Event.{PlayerExit}
 
   alias Surefire.Accounting.{Book, Transaction}
+    alias Surefire.Accounting.LedgerServer
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
-            #            ledger: %Surefire.Accounting.Book{},
+            ledger: nil,
             rounds: []
 
   # TODO : map of games, to match games with avatars...
@@ -32,41 +33,49 @@ defmodule Blackjack.Game do
     Register players for a new game.
   """
   def new(deck_number \\ 3, initial_funds \\ 1000) do
+    {:ok, ledger_pid} = LedgerServer.start_link()
+    :ok = LedgerServer.open_account(ledger_pid, :liabilities, "House Liabilities", :credit)
+    :ok = LedgerServer.open_account(ledger_pid, :assets, "House Assets", :debit)
+    :ok = LedgerServer.open_account(ledger_pid, :payments, "Payment", :credit)
+
+    LedgerServer.transfer(ledger_pid, :liabilities, :assets, initial_funds)
+
     shoe = Card.deck() |> List.duplicate(deck_number) |> List.flatten() |> Enum.shuffle()
 
     %__MODULE__{
-      #  ledger: Book.new(initial_funds)
+        ledger: ledger_pid
     }
     |> new_round("First round", shoe)
   end
 
   def new_round(
         %__MODULE__{
-          rounds: games
-          #    ledger: ledger
+          rounds: games,
+              ledger: ledger_pid
         },
         id,
         shoe,
         initial_funds \\ 100
       ) do
-    new_round = Round.new(id, shoe, Account.new_debit(id, "Round Account"))
 
-    # TODO create transaction to transfer funds
-    #    round_funding = Transaction.build("Round #{id} funding")
-    #    |> Transaction.with_credit(ledger[:expenses], initial_funds)
-    #    |> Transaction.with_debit(new_round.account, initial_funds)
+    :ok = LedgerServer.open_account(ledger_pid, id, "Round #{id} Account", :debit)
 
-    # TODO store transaction in history ? WHERE ? => supervisor ??? game app ??? surefire ??
+    :ok = LedgerServer.transfer(ledger_pid, :assets, id, initial_funds)
+
+    # Currently: # Game -> Round
+    # LATER: something like Player Ledger <-> (Round <- Game)
+
+    # the Account is mirrored there (but the ledger is not passed -> no transfer available)
+    new_round = Round.new(id, shoe, ledger_pid, id)
 
     %__MODULE__{
       rounds: [new_round | games]
-      #      ledger: ledger
     }
   end
 
-  def continue_game(%__MODULE__{rounds: [last_round | previous_rounds]}) do
+  def continue_game(%__MODULE__{rounds: [last_round | previous_rounds], ledger: ledger_pid}) do
     %__MODULE__{
-      rounds: [Round.new(last_round.shoe) | [last_round | previous_rounds]]
+      rounds: [Round.new("Next", last_round.shoe, ledger_pid, "Next") | [last_round | previous_rounds]]
     }
   end
 
@@ -107,7 +116,7 @@ defmodule Blackjack.Game do
 
     %{
       bj
-      | rounds: [game |> Round.bet(avatar, amount) | old_games],
+      | rounds: [game |> Round.enter(avatar) | old_games],
         players: players
         #         players: players |> Map.replace(player_id, upd_player),
     }

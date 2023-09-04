@@ -82,6 +82,21 @@ defmodule Surefire.Accounting.Transaction do
     }
   end
 
+
+  # convenience functions only...
+  def debit_transfer(from_pid, from_account, to_pid, to_account, amount) do
+    build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
+    |> with_debit(from_pid, from_account, amount)
+    |> with_credit(to_pid, to_account, amount)
+  end
+#   TODO : maybe to+pid to_account can be an option -> allow multiple ??
+  def credit_transfer(from_pid, from_account, to_pid, to_account, amount) do
+    build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
+    |> with_credit(from_pid, from_account, amount)
+    |> with_debit(to_pid, to_account, amount)
+  end
+
+
   #  # API attempt( from the point of view of player -> avatars
   #  def funding_to(
   #        amount,

@@ -30,19 +30,30 @@ defmodule Blackjack.Round do
   defstruct id: "the_roundWIP",
             bets: %Bets{},
             avatars: %{},
-            account: %Surefire.Accounting.Account{},
+            ledger_pid: nil,
+            account_id: nil,
             # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
             table: %Table{}
 
   # Note: one player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
-  def new(id, shoe) do
+  # TODO : no leddger -> dry run -> no transactions in this round...
+    def new(id, shoe) do
     %{
       %__MODULE__{}
       | id: id,
         table: Table.new(shoe)
-        #    account: account
+    }
+  end
+
+  def new(id, shoe, ledger_pid, account_id) do
+    %{
+      %__MODULE__{}
+      | id: id,
+        table: Table.new(shoe),
+        ledger_pid: ledger_pid,
+        account_id: account_id
     }
   end
 

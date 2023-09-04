@@ -87,20 +87,26 @@ defmodule Surefire.TestPlayer do
 end
 
 defmodule Surefire.IExPlayer do
-  alias Surefire.Accounting.Book
+  alias Surefire.Accounting.LedgerServer
 
   # TODO : isnt the id implicit here (ie. from context : iex, node, etc...)
   defstruct id: nil,
-            # TODO : put a ledger here
             ledger: nil,
             avatars: %{},
             avatar_counter: 0
 
   # TODO : only one player per iex session -> HOW ??
-  def new(id, amount \\ 0) do
-    # TODO : create funding transaction and commit
-    # , ledger: Surefire.Accounting.Book.new()
-    %__MODULE__{id: id}
+  def new(id, funds \\ 0) do
+    {:ok, ledger_pid} = GenServer.start_link(LedgerServer, Surefire.Accounting.LogServer)
+
+    :ok = LedgerServer.open_account(ledger_pid, :liabilities, "External Liabilities", :credit)
+    :ok = LedgerServer.open_account(ledger_pid, :assets, "Assets", :debit)
+
+    LedgerServer.transfer(self(), :liabilities, :assets, funds)
+
+    %__MODULE__{
+    id: id,
+    ledger: ledger_pid}
   end
 
   def new() do
@@ -114,26 +120,27 @@ defmodule Surefire.IExPlayer do
   end
 
   @doc ~s"""
-  Avatar is a piece of state, that the player leaves in teh game process.
+  Avatar is a piece of state, that the player leaves in the game process.
 
-  The avatar is used to interract with the player/user when it cannot make automnomous decisions
+  The avatar is used to interact with the player/user when it cannot make autonomous decisions
   It also can create transactions to update players ledger...
 
   """
-  def avatar(%__MODULE__{} = player, avatar_id_prefix, funds \\ 0) do
-    # TODO... WIP
+  def avatar(%__MODULE__{ledger: ledger_pid} = player, avatar_id_prefix, funds \\ 0) do
 
     avatar_id = (avatar_id_prefix <> "#{player.avatar_counter}") |> String.to_atom()
     # create an account for the avatar in players ledger
-    avatar_account = Surefire.Accounting.Account.new_debit(avatar_id, "TestAvatar Account")
-    updated_ledger = Book.add_external(player.ledger, avatar_account)
-    # Shouldnt the Account be mirrored here ??
-    avatar = Surefire.Avatar.new(avatar_id, updated_ledger.externals[avatar_id])
+    LedgerServer.open_account(ledger_pid, avatar_id, "#{avatar_id} Account", :debit)
+    LedgerServer.transfer(ledger_pid, :assets, avatar_id, funds)
 
-    # TODO : create transaction and store in history to assign funds...
+    # Currently: # Player -> Avatar
+    # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
+
+    # the Account is mirrored there (but the ledger is not passed -> no transfer available)
+    avatar = Surefire.Avatar.new(avatar_id, LedgerServer.accounts[avatar_id])
 
     # return the avatar with the account id (as pointer to create a transaction)
-    {avatar, %{player | ledger: updated_ledger}}
+    {avatar, player}
   end
 
   # TODO : decorate iex session to show name of player ?

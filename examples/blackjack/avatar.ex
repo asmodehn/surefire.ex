@@ -2,7 +2,9 @@
 #  @callback id() :: atom
 #  @callback hit_or_stand(Hand.t(), Hand.t()) :: :hit | :stand
 # end
-
+# TODO : rename to `Blackjack.Player` instead ?
+# BUT still matches the Surefire.Avatar module...
+# TODO : behaviour instead (simpler) ??
 defprotocol Blackjack.Avatar do
   @moduledoc ~s"""
   Avatar protocol to allow any player to interact with blackjack rules.
@@ -39,38 +41,6 @@ defmodule Blackjack.Dealer do
   end
 end
 
-# defmodule Blackjack.Avatar.IEx do
-#  defstruct id: nil, player_id: nil
-#
-#  # TODO : new API : from_player for_round => generate with custom algo in surefire...
-#  def new(id, player_id) do
-#    %__MODULE__{id: id, player_id: player_id}
-#  end
-#
-#  defimpl Blackjack.Avatar do
-#    def id(%Blackjack.Avatar.IEx{} = avatar) do
-#      avatar.id
-#    end
-#
-#    def player_id(avatar) do
-#      avatar.player_id
-#    end
-#
-#    def hit_or_stand(%Blackjack.Avatar.IEx{} = avatar, hand, dealer_hand) do
-#      Surefire.Avatar.IEx.decide(
-#        """
-#        #{id(avatar)} position at #{hand.value}.
-#        Dealer at #{dealer_hand.value}.
-#        What to do ?
-#        """,
-#        %{
-#          "One more card !" => :hit,
-#          "I'm good" => :stand
-#        }
-#      )
-#    end
-#  end
-# end
 
 defimpl Blackjack.Avatar, for: Surefire.Avatar do
   # Note: player can be implemented in surefire side.
@@ -124,49 +94,3 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
   end
 end
 
-# defmodule Blackjack.Avatar.Random do
-#  defstruct id: nil, player_id: nil
-#
-#  def new(id, player_id) do
-#    %__MODULE__{id: id, player_id: player_id}
-#  end
-#
-#  defimpl Blackjack.Avatar do
-#    def id(%Blackjack.Avatar.Random{} = avatar) do
-#      avatar.id
-#    end
-#
-#    def player_id(avatar) do
-#      avatar.player_id
-#    end
-#
-#    def hit_or_stand(%Blackjack.Avatar.Random{} = avatar, _hand, _dealer_hand) do
-#      Enum.random([
-#        :stand,
-#        :hit
-#      ])
-#    end
-#  end
-# end
-#
-# defmodule Blackjack.Avatar.Custom do
-#  defstruct id: nil, player_id: nil, hit_or_stand: nil
-#
-#  def new(id, player_id, hit_or_stand) do
-#    %__MODULE__{id: id, player_id: player_id, hit_or_stand: hit_or_stand}
-#  end
-#
-#  defimpl Blackjack.Avatar do
-#    def id(%Blackjack.Avatar.Custom{} = avatar) do
-#      avatar.id
-#    end
-#
-#    def player_id(avatar) do
-#      avatar.player_id
-#    end
-#
-#    def hit_or_stand(%Blackjack.Avatar.Custom{} = avatar, hand, dealer_hand) do
-#      avatar.hit_or_stand.(hand, dealer_hand)
-#    end
-#  end
-# end

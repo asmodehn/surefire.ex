@@ -13,7 +13,7 @@ defmodule Surefire.Accounting.LedgerServer do
 
   # Client
 
-  def start_link(history_pid, _opts \\ []) do
+  def start_link(history_pid \\ LogServer, _opts \\ []) do
     if Process.alive?(history_pid) do
       GenServer.start_link(__MODULE__, history_pid)
     else
@@ -51,6 +51,18 @@ defmodule Surefire.Accounting.LedgerServer do
 
     # Note: transactions are safe to transfer around: atomic event-like / message-like
     tid = GenServer.call(pid, {:transfer, transaction})
+
+    tid
+  end
+
+  def send_to_pid(from_pid, from_account, to_pid, to_account, amount) do
+    transaction =
+      Transaction.build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
+      |> Transaction.with_debit(from_pid, from_account, amount)
+      |> Transaction.with_credit(to_pid, to_account, amount)
+
+    # Note: transactions are safe to transfer around: atomic event-like / message-like
+    tid = GenServer.call(from_pid, {:transfer, transaction})
 
     tid
   end

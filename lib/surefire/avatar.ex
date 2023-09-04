@@ -25,14 +25,25 @@ defmodule Surefire.Avatar do
   defstruct id: nil,
             # TODO: player_id is TMP and should not be needed when we can use transaction for gains.
             player_id: nil,
-            account: %Surefire.Accounting.Account{},
+            #TODO : BUT this is useful to find remote ledger server...
+            player_pid: nil,
+            account_id: nil,
             actions: %{}
 
-  def new(id, player_id, initial_funds \\ 100) do
+              def new(id, player_id) do
+    %__MODULE__{
+      id: id,
+      player_id: player_id
+    }
+    # TODO : no transaction -> fake bets -> dry-run
+  end
+
+  def new(id, player_id, player_pid, account_id) do
     %__MODULE__{
       id: id,
       player_id: player_id,
-      account: Surefire.Accounting.Account.new_debit(id, initial_funds)
+      player_pid: player_pid,
+      account_id: account_id
     }
   end
 
@@ -79,7 +90,7 @@ defmodule Surefire.Avatar do
     keys = Map.keys(choice_map)
     choice_idx = ExPrompt.choose(prompt, keys)
 
-    choice =
+    _choice =
       case choice_idx do
         # extract value when key matches
         i when i in 0..(length(keys) - 1) -> choice_map[Enum.at(keys, i)]
@@ -92,13 +103,18 @@ defmodule Surefire.Avatar do
     ExPrompt.string_required(prompt)
   end
 
-  def bet_transaction(%__MODULE__{} = avatar, amount, to_account) do
+  def bet_transaction(%__MODULE__{player_pid: player_pid, account_id: account_id} = avatar, amount, to_pid, to_account_id) do
     #        amount,
     #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
     #        ledger_revenue_account_id \\ :revenue
     #      ) do
-    Transaction.build("#{avatar.account.name} Bet on #{to_account}")
-    |> Transaction.with_credit(avatar.account.id, amount)
-    |> Transaction.with_debit(to_account.id, amount)
+    Transaction.build("#{player_pid} #{account_id} Bet on #{to_pid} #{to_account_id}")
+    |> Transaction.with_credit(player_pid, to_account_id, amount)
+    |> Transaction.with_debit(to_pid, to_account_id, amount)
   end
+
+  def request_funding(%__MODULE__{player_id: player_id} = avatar, amount) do
+    Surefire.Player.request_funding(player_id, avatar.id, amount)
+  end
+
 end
