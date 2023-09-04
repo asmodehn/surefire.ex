@@ -57,7 +57,9 @@ defmodule Surefire.Accounting.LedgerServer do
 
   def send_to_pid(from_pid, from_account, to_pid, to_account, amount) do
     transaction =
-      Transaction.build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
+      Transaction.build(
+        "Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}"
+      )
       |> Transaction.with_debit(from_pid, from_account, amount)
       |> Transaction.with_credit(to_pid, to_account, amount)
 

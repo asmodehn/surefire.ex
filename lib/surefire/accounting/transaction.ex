@@ -82,61 +82,19 @@ defmodule Surefire.Accounting.Transaction do
     }
   end
 
-
   # convenience functions only...
   def debit_transfer(from_pid, from_account, to_pid, to_account, amount) do
     build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
     |> with_debit(from_pid, from_account, amount)
     |> with_credit(to_pid, to_account, amount)
   end
-#   TODO : maybe to+pid to_account can be an option -> allow multiple ??
+
+  #   TODO : maybe to+pid to_account can be an option -> allow multiple ??
   def credit_transfer(from_pid, from_account, to_pid, to_account, amount) do
     build("Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}")
     |> with_credit(from_pid, from_account, amount)
     |> with_debit(to_pid, to_account, amount)
   end
-
-
-  #  # API attempt( from the point of view of player -> avatars
-  #  def funding_to(
-  #        amount,
-  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-  #        ledger_asset_account_id \\ :assets
-  #      ) do
-  #    build("Funding to #{acc_name}")
-  #    |> with_credit(ledger_asset_account_id, amount)
-  #    |> with_debit(avatar_asset_account.id, amount)
-  #  end
-  #
-  #  def repayment_from(
-  #        amount,
-  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-  #        ledger_asset_account_id \\ :assets
-  #      ) do
-  #    build("Repayment from #{acc_name}")
-  #    |> with_debit(ledger_asset_account_id, amount)
-  #    |> with_credit(avatar_asset_account.id, amount)
-  #  end
-  #
-  #  def earning_at(
-  #        amount,
-  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-  #        ledger_revenue_account_id \\ :revenue
-  #      ) do
-  #    build("#{acc_name} Earning record")
-  #    |> with_credit(ledger_revenue_account_id, amount)
-  #    |> with_debit(avatar_asset_account.id, amount)
-  #  end
-  #
-  #  def collect_from(
-  #        amount,
-  #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-  #        ledger_revenue_account_id \\ :revenue
-  #      ) do
-  #    build("#{acc_name} Earning collection")
-  #    |> with_debit(ledger_revenue_account_id, 12)
-  #    |> with_credit(avatar_asset_account.id, 12)
-  #  end
 
   # API attempt from the point of view of the game
   # collect_from/2 is the same except with a different process

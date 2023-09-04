@@ -41,7 +41,6 @@ defmodule Blackjack.Dealer do
   end
 end
 
-
 defimpl Blackjack.Avatar, for: Surefire.Avatar do
   # Note: player can be implemented in surefire side.
   # BUT: Avatar depends on the game and is implemented game side...
@@ -62,8 +61,9 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
 
   def bet(%Surefire.Avatar{} = avatar) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
-    amount = Integer.parse!(answer)
+    amount = Integer.parse(answer)
 
+    # TODO : use Transaction module instead for now...
     transaction = Surefire.Avatar.bet_transaction(avatar, amount)
     # TODO Store transaction in history to reflect transfer in account.
     updated_avatar = avatar
@@ -93,4 +93,3 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     )
   end
 end
-

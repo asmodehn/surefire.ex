@@ -9,8 +9,8 @@ defmodule Blackjack.Round do
 
       iex> me = Surefire.IExPlayer.new(:mememe, 100)
       iex> {av, me} = me |> Surefire.IExPlayer.avatar("bj_avatar", 50)
-      iex> g = Blackjack.Round.new(Blackjack.Card.deck() |> Enum.shuffle())
-      iex> g = g |> Blackjack.Round.bet(av, 21)
+      iex> g = Blackjack.Round.new("demo round", Blackjack.Card.deck() |> Enum.shuffle())
+      iex> g = g |> Blackjack.Round.enter(av)
       iex> g = g |> Blackjack.Round.deal()
       iex> g = g |> Blackjack.Round.play()
       iex> g = g |> Blackjack.Round.resolve()
@@ -39,7 +39,7 @@ defmodule Blackjack.Round do
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
   # TODO : no leddger -> dry run -> no transactions in this round...
-    def new(id, shoe) do
+  def new(id, shoe) do
     %{
       %__MODULE__{}
       | id: id,

@@ -18,7 +18,7 @@ defmodule Blackjack.Game do
   alias Blackjack.Event.{PlayerExit}
 
   alias Surefire.Accounting.{Book, Transaction}
-    alias Surefire.Accounting.LedgerServer
+  alias Surefire.Accounting.LedgerServer
 
   #    @derive {Inspect, only: [:players]}
   defstruct players: %{},
@@ -43,7 +43,7 @@ defmodule Blackjack.Game do
     shoe = Card.deck() |> List.duplicate(deck_number) |> List.flatten() |> Enum.shuffle()
 
     %__MODULE__{
-        ledger: ledger_pid
+      ledger: ledger_pid
     }
     |> new_round("First round", shoe)
   end
@@ -51,13 +51,12 @@ defmodule Blackjack.Game do
   def new_round(
         %__MODULE__{
           rounds: games,
-              ledger: ledger_pid
+          ledger: ledger_pid
         },
         id,
         shoe,
         initial_funds \\ 100
       ) do
-
     :ok = LedgerServer.open_account(ledger_pid, id, "Round #{id} Account", :debit)
 
     :ok = LedgerServer.transfer(ledger_pid, :assets, id, initial_funds)
@@ -75,7 +74,9 @@ defmodule Blackjack.Game do
 
   def continue_game(%__MODULE__{rounds: [last_round | previous_rounds], ledger: ledger_pid}) do
     %__MODULE__{
-      rounds: [Round.new("Next", last_round.shoe, ledger_pid, "Next") | [last_round | previous_rounds]]
+      rounds: [
+        Round.new("Next", last_round.shoe, ledger_pid, "Next") | [last_round | previous_rounds]
+      ]
     }
   end
 

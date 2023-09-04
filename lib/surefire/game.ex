@@ -14,32 +14,24 @@ defprotocol Surefire.Game do
   # If problem -> crash -> every player is refunded.
 end
 
-
 defmodule Surefire.TestGame do
-
 end
 
 defmodule Surefire.IExGame do
-
-    alias Surefire.Accounting.LedgerServer
-
-
-
-
+  alias Surefire.Accounting.LedgerServer
 end
 
-
-  # Note : there are mutliple players in a game.
-  # To be able to easily do:
-  # updated_game = for p <- players, reduce: game do
-  #     game -> update(game, p)
-  # end
-  #
-  # We need a game/player model that "implicitly" reduce...
-  # - get inspirations from CRDTs ??
-  # - design an "inner module" only for reduceable player actions ?
-  # - other solution ??
-  # CAREFUL : the way these reduce ARE part of the game rules
-  #
-  # => make game a collectable ??
-  # Note : if we keep track of all actions, we can make it an enumerable as well ?? -> allows replays
+# Note : there are mutliple players in a game.
+# To be able to easily do:
+# updated_game = for p <- players, reduce: game do
+#     game -> update(game, p)
+# end
+#
+# We need a game/player model that "implicitly" reduce...
+# - get inspirations from CRDTs ??
+# - design an "inner module" only for reduceable player actions ?
+# - other solution ??
+# CAREFUL : the way these reduce ARE part of the game rules
+#
+# => make game a collectable ??
+# Note : if we keep track of all actions, we can make it an enumerable as well ?? -> allows replays

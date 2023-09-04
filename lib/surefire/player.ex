@@ -102,11 +102,12 @@ defmodule Surefire.IExPlayer do
     :ok = LedgerServer.open_account(ledger_pid, :liabilities, "External Liabilities", :credit)
     :ok = LedgerServer.open_account(ledger_pid, :assets, "Assets", :debit)
 
-    LedgerServer.transfer(self(), :liabilities, :assets, funds)
+    LedgerServer.transfer(ledger_pid, :liabilities, :assets, funds)
 
     %__MODULE__{
-    id: id,
-    ledger: ledger_pid}
+      id: id,
+      ledger: ledger_pid
+    }
   end
 
   def new() do
@@ -127,8 +128,9 @@ defmodule Surefire.IExPlayer do
 
   """
   def avatar(%__MODULE__{ledger: ledger_pid} = player, avatar_id_prefix, funds \\ 0) do
-
     avatar_id = (avatar_id_prefix <> "#{player.avatar_counter}") |> String.to_atom()
+    # TODO : unicity of avatar id !! BEFORE doing transaction...
+
     # create an account for the avatar in players ledger
     LedgerServer.open_account(ledger_pid, avatar_id, "#{avatar_id} Account", :debit)
     LedgerServer.transfer(ledger_pid, :assets, avatar_id, funds)
@@ -137,9 +139,10 @@ defmodule Surefire.IExPlayer do
     # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
 
     # the Account is mirrored there (but the ledger is not passed -> no transfer available)
-    avatar = Surefire.Avatar.new(avatar_id, LedgerServer.accounts[avatar_id])
+    avatar = Surefire.Avatar.new(avatar_id, LedgerServer.view(ledger_pid, avatar_id))
 
     # return the avatar with the account id (as pointer to create a transaction)
+    # TODO : update avatar in player ? or useless ??
     {avatar, player}
   end
 

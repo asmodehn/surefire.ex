@@ -33,8 +33,8 @@ defmodule Surefire.Accounting.LogServer do
 
   # Client
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts)
+  def start_link(opts \\ [name: __MODULE__]) do
+    GenServer.start_link(__MODULE__, {}, opts)
   end
 
   # TODO : various transaction creation depending on possible operations...
@@ -74,7 +74,7 @@ defmodule Surefire.Accounting.LogServer do
   # Server (callbacks)
 
   @impl true
-  def init(_opts) do
+  def init(_init_arg) do
     {:ok, History.new()}
   end
 
