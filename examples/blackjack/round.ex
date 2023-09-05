@@ -2,7 +2,7 @@ defmodule Blackjack.Round do
   @moduledoc ~s"""
   This module manages one game of blackjack.
 
-  We care about the bts at this level.
+  We care about the bets at this level.
     The stochastic process is in Table, and manages the "game" itself, without being concerned with bets.
 
   To run a quick game:
@@ -15,10 +15,6 @@ defmodule Blackjack.Round do
       iex> g = g |> Blackjack.Round.play()
       iex> g = g |> Blackjack.Round.resolve()
   """
-
-  #  defmodule PlayerDone do
-  #    defstruct id: nil, end: nil # bust / blackjack / value.
-  #  end
 
   alias Blackjack.{Bets, Table, Avatar}
   #  alias Blackjack.Event.{PlayerExit}
@@ -38,7 +34,7 @@ defmodule Blackjack.Round do
   # Note: one player can play multiple  positions/boxes.
   # Note : one position can have multiple hands (on split - require another bet (but not an extra box) ?)
 
-  # TODO : no leddger -> dry run -> no transactions in this round...
+  # TODO : no ledger -> dry run -> no transactions in this round...
   def new(id, shoe) do
     %{
       %__MODULE__{}
@@ -47,7 +43,8 @@ defmodule Blackjack.Round do
     }
   end
 
-  def new(id, shoe, ledger_pid, account_id) do
+  def new(id, shoe, ledger_pid, account_id)
+      when is_pid(ledger_pid) and is_atom(account_id) do
     %{
       %__MODULE__{}
       | id: id,
@@ -61,7 +58,13 @@ defmodule Blackjack.Round do
   def enter(%__MODULE__{bets: bets, avatars: avatars} = round, %Surefire.Avatar{} = avatar) do
     # TODO : make sure avatar implements avatar behaviour...
 
-    {amount, avatar} = Avatar.bet(avatar)
+    {amount, avatar} =
+      if round.ledger_pid == nil do
+        Avatar.fake_bet(avatar)
+      else
+        Avatar.bet(avatar, round.ledger_pid, round.account_id)
+        # TODO : amount or full transaciton id ?? what if fake credits ??
+      end
 
     %{
       round
@@ -180,7 +183,7 @@ defmodule Blackjack.Round do
 
     {
       %{table | bets: bets},
-      # TODO : review this as  atransaction
+      # TODO : review this as a transaction
       [%Blackjack.Event.PlayerExit{id: avatar.player_id, gain: 0}]
     }
   end

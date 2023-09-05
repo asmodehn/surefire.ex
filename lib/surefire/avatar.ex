@@ -104,19 +104,33 @@ defmodule Surefire.Avatar do
     ExPrompt.string_required(prompt)
   end
 
-  def bet_transaction(
+  def fake_bet_transfer(
+        %__MODULE__{player_pid: player_pid, account_id: account_id} = avatar,
+        amount
+      ) do
+    nil
+  end
+
+  def bet_transfer(
         %__MODULE__{player_pid: player_pid, account_id: account_id} = avatar,
         amount,
-        to_pid,
-        to_account_id
+        game_ledger_pid,
+        round_account_id
       ) do
-    #        amount,
-    #        %Account{name: acc_name, type: :debit} = avatar_asset_account,
-    #        ledger_revenue_account_id \\ :revenue
-    #      ) do
-    Transaction.build("#{player_pid} #{account_id} Bet on #{to_pid} #{to_account_id}")
-    |> Transaction.with_credit(player_pid, to_account_id, amount)
-    |> Transaction.with_debit(to_pid, to_account_id, amount)
+    tid =
+      Surefire.Accounting.LedgerServer.transfer_to_ledger(
+        # from
+        player_pid,
+        account_id |> IO.inspect(),
+        # to
+        game_ledger_pid,
+        round_account_id,
+        amount
+      )
+
+    # TODO : how to change description ??
+
+    tid
   end
 
   def request_funding(%__MODULE__{player_id: player_id} = avatar, amount) do

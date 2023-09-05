@@ -32,18 +32,23 @@ defmodule Surefire.TestPlayer do
     %{player | action_plan: player.action_plan |> Map.put(:fun_name, fun_body)}
   end
 
-  def avatar(%__MODULE__{} = player, avatar_id_prefix, funds \\ 0) do
-    # TODO... WIP
-
+  def avatar(%__MODULE__{ledger: ledger_pid} = player, avatar_id_prefix, funds \\ 0) do
     avatar_id = (avatar_id_prefix <> "#{player.avatar_counter}") |> String.to_atom()
+    # TODO : unicity of avatar id !! BEFORE doing transaction...
+
     # create an account for the avatar in players ledger
-    avatar_account = Surefire.Accounting.Account.new_debit(avatar_id, "TestAvatar Account")
-    updated_ledger = Book.add_external(player.ledger, avatar_account)
-    # Shouldnt the Account be mirrored here ??
-    avatar = Surefire.Avatar.new(avatar_id, updated_ledger.externals[avatar_id])
+    LedgerServer.open_account(ledger_pid, avatar_id, "#{avatar_id} Account", :debit)
+    LedgerServer.transfer(ledger_pid, :assets, avatar_id, funds)
+
+    # Currently: # Player -> Avatar
+    # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
+
+    # the Account is mirrored there (but the ledger is not passed -> no transfer available)
+    avatar = Surefire.Avatar.new(avatar_id, player.id, ledger_pid, avatar_id)
 
     # return the avatar with the account id (as pointer to create a transaction)
-    {avatar, %{player | ledger: updated_ledger}}
+    # TODO : update avatar in player ? or useless ??
+    {avatar, player}
   end
 
   # TODO : decorate iex session to show name of player ?
@@ -138,8 +143,8 @@ defmodule Surefire.IExPlayer do
     # Currently: # Player -> Avatar
     # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
 
-    # the Account is mirrored there (but the ledger is not passed -> no transfer available)
-    avatar = Surefire.Avatar.new(avatar_id, LedgerServer.view(ledger_pid, avatar_id))
+    # we pass the ledger pid and the avatar account id to be able to access it.
+    avatar = Surefire.Avatar.new(avatar_id, player.id, ledger_pid, avatar_id)
 
     # return the avatar with the account id (as pointer to create a transaction)
     # TODO : update avatar in player ? or useless ??

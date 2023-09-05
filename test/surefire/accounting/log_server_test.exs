@@ -5,6 +5,7 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "start_link/1" do
     test "starts the Accounting server" do
+      # Note : this will use hte default name -> should be the only test to do so...
       {:ok, pid} = LogServer.start_link()
 
       assert Process.alive?(pid)
@@ -13,13 +14,13 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "chunk/2" do
     setup do
-      {:ok, pid} = LogServer.start_link()
+      with pid <- start_supervised!(LogServer) do
+        LogServer.open_account(pid, self(), :alice)
+        LogServer.open_account(pid, self(), :bob)
 
-      LogServer.open_account(pid, self(), :alice)
-      LogServer.open_account(pid, self(), :bob)
-
-      LogServer.open_account(pid, self(), :charlie)
-      %{history_srv: pid}
+        LogServer.open_account(pid, self(), :charlie)
+        %{history_srv: pid}
+      end
     end
 
     test "retrieves partial history from the accounting Server history",
@@ -77,11 +78,11 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "last_committed_id" do
     setup do
-      {:ok, pid} = LogServer.start_link()
-
-      LogServer.open_account(pid, self(), :alice)
-      LogServer.open_account(pid, self(), :bob)
-      %{accounting_srv: pid}
+      with pid <- start_supervised!(LogServer) do
+        LogServer.open_account(pid, self(), :alice)
+        LogServer.open_account(pid, self(), :bob)
+        %{accounting_srv: pid}
+      end
     end
 
     test "return the last committed transaction id",
@@ -99,11 +100,11 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "commit/4" do
     setup do
-      {:ok, pid} = LogServer.start_link()
-
-      LogServer.open_account(pid, self(), :alice)
-      LogServer.open_account(pid, self(), :bob)
-      %{accounting_srv: pid}
+      with pid <- start_supervised!(LogServer) do
+        LogServer.open_account(pid, self(), :alice)
+        LogServer.open_account(pid, self(), :bob)
+        %{accounting_srv: pid}
+      end
     end
 
     test "records the transaction in the Accounting server history",
@@ -174,9 +175,9 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "open_account/3" do
     setup do
-      {:ok, pid} = LogServer.start_link()
-
-      %{accounting_srv: pid}
+      with pid <- start_supervised!(LogServer) do
+        %{accounting_srv: pid}
+      end
     end
 
     test "opens an account and accepts matching transactions",
@@ -191,9 +192,9 @@ defmodule Surefire.Accounting.LogServerTest do
   # TODO: maybe review account management API ?
   describe "accounts/2" do
     setup do
-      {:ok, pid} = LogServer.start_link()
-
-      %{accounting_srv: pid}
+      with pid <- start_supervised!(LogServer) do
+        %{accounting_srv: pid}
+      end
     end
 
     test "list known accounts by the LogServer that are currently open",
@@ -210,9 +211,9 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "close_account/3" do
     setup do
-      {:ok, pid} = LogServer.start_link()
-
-      %{accounting_srv: pid}
+      with pid <- start_supervised!(LogServer) do
+        %{accounting_srv: pid}
+      end
     end
 
     test "closes an account and refuses matching transactions",

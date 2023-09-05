@@ -17,4 +17,9 @@ defmodule Surefire.Accounting do
   #   - log server,
   #   - multiple ledger serverS
   #   - a chart of accounts to help validate transactions upon commit.
+
+  # TODO DESIGN IDEA : identifiers in processes :
+  # - pid + account_id
+
+  # API relying on "remote ids" (i.e. id in another process)
 end

@@ -43,17 +43,25 @@ defmodule Blackjack.RoundTest do
 
       _tid = LedgerServer.transfer(playerledger_pid, :assets, :avatar_test_round, 100)
 
-      avatar_account = Surefire.Accounting.LedgerServer.view(playerledger_pid, :avatar_test_round)
+      _avatar_account =
+        Surefire.Accounting.LedgerServer.view(playerledger_pid, :avatar_test_round)
 
       avatar =
-        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, avatar_account)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :avatar_test_round)
+        |> Surefire.Avatar.with_action(:bet, fn
+          av, gl, ra ->
+            _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
+            {45, av}
+        end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
       _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
 
       game =
-        Round.new("test_round", Card.deck(), gameledger_pid, :test_round) |> Round.enter(avatar)
+        Round.new("test_round", Card.deck(), gameledger_pid, :test_round)
+        |> Round.enter(avatar)
+
+      # TODO : verify transaction exists
 
       # TODO :maybe this is one level too much ? => integrate bets in avatar's account
       assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
@@ -102,12 +110,21 @@ defmodule Blackjack.RoundTest do
 
       avatar =
         Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.with_action(:bet, fn
+          av, gl, ra ->
+            _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
+            {45, av}
+        end)
+
+      :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
+      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
 
       game =
         Round.new("test_round", [], gameledger_pid, :test_round)
         |> Round.enter(avatar)
         |> Round.deal(:bob)
+
+      # TODO : verify transaction exists
 
       # TODO : hand as just a list of cards (no struct) ???
       # => bob has no hand
@@ -142,7 +159,14 @@ defmodule Blackjack.RoundTest do
 
       avatar =
         Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.with_action(:bet, fn
+          av, gl, ra ->
+            _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
+            {45, av}
+        end)
+
+      :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
+      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
 
       game =
         Round.new("test_round", ~C[5 8 K]h, gameledger_pid, :test_round)
@@ -178,7 +202,14 @@ defmodule Blackjack.RoundTest do
 
       avatar =
         Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.with_action(:bet, fn
+          av, gl, ra ->
+            _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
+            {45, av}
+        end)
+
+      :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
+      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
 
       game =
         Round.new("test_round", ~C[5 8 K]h, gameledger_pid, :test_round)
@@ -207,6 +238,7 @@ defmodule Blackjack.RoundTest do
   end
 
   describe "play/2" do
+    # TODO : transactions here when "double" or "split"
     test "calls player_request with player hand and dealer hand" do
       bob_request = fn
         ph, dh -> raise "player_hand: #{ph}, dealer_hand: #{dh}"

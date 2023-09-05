@@ -55,11 +55,11 @@ defmodule Surefire.Accounting.LedgerServer do
     tid
   end
 
-  def send_to_pid(from_pid, from_account, to_pid, to_account, amount) do
+  def transfer_to_ledger(from_pid, from_account, to_pid, to_account, amount)
+      when is_pid(from_pid) and is_atom(from_account) and is_pid(to_pid) and is_atom(to_account) do
+    # TODO : add description of a remote ledger ! some kind of name...
     transaction =
-      Transaction.build(
-        "Transfer #{amount} from #{from_pid} #{from_account} to #{to_pid} #{to_account}"
-      )
+      Transaction.build("Transfer #{amount} from #{from_account} to #{to_account}")
       |> Transaction.with_debit(from_pid, from_account, amount)
       |> Transaction.with_credit(to_pid, to_account, amount)
 
@@ -68,8 +68,6 @@ defmodule Surefire.Accounting.LedgerServer do
 
     tid
   end
-
-  # TODO : creation of transactions between different ledgers...
 
   # Server (callbacks)
 

@@ -13,7 +13,9 @@ defprotocol Blackjack.Avatar do
   def id(avatar)
   def player_id(avatar)
 
-  def bet(avatar)
+  # TODO : maybe another kind of "bet" when there is no transaction involved ?
+  def fake_bet(avatar)
+  def bet(avatar, game_ledger_pid, round_account_id)
   def hit_or_stand(avatar, hand, dealer_hand)
 end
 
@@ -53,22 +55,37 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     avatar.player_id
   end
 
-  def bet(%Surefire.Avatar{actions: actions} = avatar)
+  # default to nil for game ledger and round account, in case we do not want any proper accounting (dry-run)
+  def fake_bet(%Surefire.Avatar{actions: actions} = avatar)
       when is_map_key(actions, :bet) do
-    # attempt automation
     {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet)
+
+    {bet, avatar}
   end
 
-  def bet(%Surefire.Avatar{} = avatar) do
+  def fake_bet(%Surefire.Avatar{} = avatar) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
     amount = Integer.parse(answer)
 
-    # TODO : use Transaction module instead for now...
-    transaction = Surefire.Avatar.bet_transaction(avatar, amount)
-    # TODO Store transaction in history to reflect transfer in account.
-    updated_avatar = avatar
+    _tid = Surefire.Avatar.fake_bet_transfer(avatar, amount)
+    # TODO : return fake TID (nil !) + amount as usable reference ?
+    {amount, avatar}
+  end
 
-    {amount, updated_avatar}
+  def bet(%Surefire.Avatar{actions: actions} = avatar, game_ledger_pid, round_account_id)
+      when is_map_key(actions, :bet) and is_pid(game_ledger_pid) and is_atom(round_account_id) do
+    # attempt automation
+    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet, game_ledger_pid, round_account_id)
+  end
+
+  def bet(%Surefire.Avatar{} = avatar, game_ledger_pid, round_account_id)
+      when is_pid(game_ledger_pid) and is_atom(round_account_id) do
+    answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
+    amount = Integer.parse(answer)
+
+    _tid = Surefire.Avatar.bet_transfer(avatar, amount, game_ledger_pid, round_account_id)
+    # TODO : return TID + amount as usable reference ?
+    {amount, avatar}
   end
 
   def hit_or_stand(%Surefire.Avatar{actions: actions} = avatar, hand, dealer_hand)
