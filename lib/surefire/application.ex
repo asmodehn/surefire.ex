@@ -5,12 +5,14 @@ defmodule Surefire.Application do
 
   use Application
 
+  require Surefire.Accounting.{LogServer, History}
+
   @impl true
   def start(_type, _args) do
     children = [
       # Starts a worker by calling: Surefire.Worker.start_link(arg)
       # {Surefire.Worker, arg}
-      Surefire.Accounting.LogServer
+      {Surefire.Accounting.LogServer, Surefire.Accounting.History.new()}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

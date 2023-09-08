@@ -1,11 +1,18 @@
 defmodule Surefire.LedgerServerTest do
   use ExUnit.Case, async: true
 
-  alias Surefire.Accounting.{LedgerServer, LogServer, Account, Transaction}
+  alias Surefire.Accounting.{History, LedgerServer, LogServer, Account, Transaction}
+
+  # childspec for logserver, passing a name,
+  # to not conflict with application's logserver.
+  @logserver_spec %{
+    id: LogServer,
+    start: {LogServer, :start_link, [[], [name: :logserver_in_ledgerservertest]]}
+  }
 
   describe "start_link/1" do
     setup do
-      history_pid = start_supervised!(LogServer)
+      history_pid = start_supervised!(@logserver_spec)
 
       %{history_pid: history_pid}
     end
@@ -19,7 +26,7 @@ defmodule Surefire.LedgerServerTest do
 
   describe "open_account/3" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
+      with history_pid <- start_supervised!(@logserver_spec),
            bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
         %{history_pid: history_pid, biz_server_pid: bizserver_pid}
       end
@@ -41,7 +48,7 @@ defmodule Surefire.LedgerServerTest do
 
   describe "close_account/2" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
+      with history_pid <- start_supervised!(@logserver_spec),
            bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
         %{history_pid: history_pid, biz_server_pid: bizserver_pid}
       end
@@ -61,7 +68,7 @@ defmodule Surefire.LedgerServerTest do
 
   describe "view/2" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
+      with history_pid <- start_supervised!(@logserver_spec),
            bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
         %{history_pid: history_pid, biz_server_pid: bizserver_pid}
       end
@@ -76,14 +83,21 @@ defmodule Surefire.LedgerServerTest do
       :ok =
         LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
 
-      tid = LedgerServer.transfer(bizserver_pid, :test_debit_A, :test_debit_B, 42)
+      tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Debit Transfer",
+          :test_debit_A,
+          :test_debit_B,
+          42
+        )
 
       %Account{
         id: :test_debit_A,
         name: "Test Debit Account A",
         type: :debit,
         entries: entries_A,
-        balance: %Surefire.Accounting.Account.Balance{debits: 42, credits: 0}
+        balance: %Surefire.Accounting.Account.Balance{debits: 0, credits: 42}
       } = LedgerServer.view(bizserver_pid, :test_debit_A)
 
       # pattern matching for partial match (because of date !)
@@ -91,9 +105,9 @@ defmodule Surefire.LedgerServerTest do
         %Transaction.Entry{
           transaction_id: ^tid,
           account: :test_debit_A,
-          description: "Transfer 42 from test_debit_A to test_debit_B",
-          debit: 42,
-          credit: 0
+          description: "Debit Transfer",
+          debit: 0,
+          credit: 42
         }
       ] = entries_A
 
@@ -110,9 +124,9 @@ defmodule Surefire.LedgerServerTest do
         %Transaction.Entry{
           transaction_id: ^tid,
           account: :test_debit_B,
-          description: "Transfer 42 from test_debit_A to test_debit_B",
-          debit: 0,
-          credit: 42
+          description: "Debit Transfer",
+          debit: 42,
+          credit: 0
         }
       ] = entries_B
     end
@@ -120,7 +134,7 @@ defmodule Surefire.LedgerServerTest do
 
   describe "balance/2" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
+      with history_pid <- start_supervised!(@logserver_spec),
            bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
         %{history_pid: history_pid, biz_server_pid: bizserver_pid}
       end
@@ -135,11 +149,190 @@ defmodule Surefire.LedgerServerTest do
       :ok =
         LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
 
-      _tid = LedgerServer.transfer(bizserver_pid, :test_debit_A, :test_debit_B, 42)
+      _tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Transfer Debit",
+          :test_debit_A,
+          :test_debit_B,
+          42
+        )
 
-      assert LedgerServer.balance(bizserver_pid, :test_debit_A) == 42
+      assert LedgerServer.balance(bizserver_pid, :test_debit_A) == -42
 
-      assert LedgerServer.balance(bizserver_pid, :test_debit_B) == -42
+      assert LedgerServer.balance(bizserver_pid, :test_debit_B) == 42
     end
+  end
+
+  describe "transfer_debit/3" do
+    setup do
+      with history_pid <- start_supervised!(@logserver_spec),
+           bizserver_pid <- start_supervised!({LedgerServer, history_pid}) do
+        %{history_pid: history_pid, biz_server_pid: bizserver_pid}
+      end
+    end
+
+    test "transfer a debit from a debit account to another debit account",
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_debit_A, "Test Debit Account A", :debit)
+
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
+
+      tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Transfer Debit",
+          :test_debit_A,
+          :test_debit_B,
+          42
+        )
+
+      %History.Chunk{
+        from: ^tid,
+        until: ^tid,
+        transactions: transactions
+      } = Surefire.Accounting.LogServer.chunk(history_pid, from: tid, to: tid)
+
+      %Transaction{
+        description: description,
+        debit: debits,
+        credit: credits
+      } = transactions[tid]
+
+      assert description == "Transfer Debit"
+      assert debits[bizserver_pid] == [test_debit_B: 42]
+      assert credits[bizserver_pid] == [test_debit_A: 42]
+
+      assert LedgerServer.balance(bizserver_pid, :test_debit_A) == -42
+      assert LedgerServer.balance(bizserver_pid, :test_debit_B) == 42
+    end
+
+    test "transfer a debit from a credit account to another credit account",
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_credit_A, "Test Credit Account A", :credit)
+
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_credit_B, "Test Credit Account B", :credit)
+
+      tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Transfer Debit",
+          :test_credit_A,
+          :test_credit_B,
+          42
+        )
+
+      %History.Chunk{
+        from: ^tid,
+        until: ^tid,
+        transactions: transactions
+      } = Surefire.Accounting.LogServer.chunk(history_pid, from: tid, to: tid)
+
+      %Transaction{
+        description: description,
+        debit: debits,
+        credit: credits
+      } = transactions[tid]
+
+      assert description == "Transfer Debit"
+      assert debits[bizserver_pid] == [test_credit_B: 42]
+      assert credits[bizserver_pid] == [test_credit_A: 42]
+
+      # Note :balance is inverted because the type of accounts is credit normal
+      assert LedgerServer.balance(bizserver_pid, :test_credit_A) == 42
+      assert LedgerServer.balance(bizserver_pid, :test_credit_B) == -42
+    end
+
+    test "transfer a debit from a credit account to another debit account",
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_credit_A, "Test Credit Account A", :credit)
+
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_debit_B, "Test Debit Account B", :debit)
+
+      tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Transfer Debit",
+          :test_credit_A,
+          :test_debit_B,
+          42
+        )
+
+      %History.Chunk{
+        from: ^tid,
+        until: ^tid,
+        transactions: transactions
+      } = Surefire.Accounting.LogServer.chunk(history_pid, from: tid, to: tid)
+
+      %Transaction{
+        description: description,
+        debit: debits,
+        credit: credits
+      } = transactions[tid]
+
+      assert description == "Transfer Debit"
+      assert debits[bizserver_pid] == [test_debit_B: 42]
+      assert credits[bizserver_pid] == [test_credit_A: 42]
+
+      # Note : both balance are same , since account type is different
+      assert LedgerServer.balance(bizserver_pid, :test_credit_A) == 42
+      assert LedgerServer.balance(bizserver_pid, :test_debit_B) == 42
+    end
+
+    test "transfer a debit from a debit account to another credit account",
+         %{history_pid: history_pid, biz_server_pid: bizserver_pid} do
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_debit_A, "Test Debit Account A", :debit)
+
+      :ok =
+        LedgerServer.open_account(bizserver_pid, :test_credit_B, "Test Credit Account B", :credit)
+
+      tid =
+        LedgerServer.transfer_debit(
+          bizserver_pid,
+          "Transfer Debit",
+          :test_debit_A,
+          :test_credit_B,
+          42
+        )
+
+      %History.Chunk{
+        from: ^tid,
+        until: ^tid,
+        transactions: transactions
+      } = Surefire.Accounting.LogServer.chunk(history_pid, from: tid, to: tid)
+
+      %Transaction{
+        description: description,
+        debit: debits,
+        credit: credits
+      } = transactions[tid]
+
+      assert description == "Transfer Debit"
+      assert debits[bizserver_pid] == [test_credit_B: 42]
+      assert credits[bizserver_pid] == [test_debit_A: 42]
+
+      # Note :balance is inverted because the type of accounts is credit normal
+      assert LedgerServer.balance(bizserver_pid, :test_debit_A) == -42
+      assert LedgerServer.balance(bizserver_pid, :test_credit_B) == -42
+    end
+  end
+
+  describe "transfer_credit/3" do
+    # TODO
+    #    test "transfer a credit from a debit account to another debit account"
+    #    test "transfer a credit from a credit account to another credit account"
+    #    test "transfer a credit from a credit account to another debit account"
+    #    test "transfer a credit from a debit account to another credit account"
+  end
+
+  describe "transfer" do
+    # TODO : verify it supports transaction between different PIDS...
   end
 end

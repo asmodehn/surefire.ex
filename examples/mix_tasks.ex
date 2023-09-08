@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Blackjack do
   @shortdoc "Starts a game of blackjack in IEx"
   def run(_) do
     # TODO with supervisor or not ??
-    Surefire.Accounting.LogServer.start_link()
+    Surefire.Accounting.LogServer.start_link([])
 
     # TODO : instructions to play blackjack over IEx.
     IO.puts("Create your player data : > me = Blackjack.Player.new_interactive()")

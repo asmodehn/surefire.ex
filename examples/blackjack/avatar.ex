@@ -65,7 +65,7 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
 
   def fake_bet(%Surefire.Avatar{} = avatar) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
-    amount = Integer.parse(answer)
+    {amount, ""} = Integer.parse(answer)
 
     _tid = Surefire.Avatar.fake_bet_transfer(avatar, amount)
     # TODO : return fake TID (nil !) + amount as usable reference ?
@@ -81,7 +81,7 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
   def bet(%Surefire.Avatar{} = avatar, game_ledger_pid, round_account_id)
       when is_pid(game_ledger_pid) and is_atom(round_account_id) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
-    amount = Integer.parse(answer)
+    {amount, ""} = Integer.parse(answer)
 
     _tid = Surefire.Avatar.bet_transfer(avatar, amount, game_ledger_pid, round_account_id)
     # TODO : return TID + amount as usable reference ?

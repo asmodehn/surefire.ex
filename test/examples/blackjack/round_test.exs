@@ -7,6 +7,13 @@ defmodule Blackjack.RoundTest do
 
   use Blackjack.Card.Sigil
 
+  # childspec for logserver, passing a name,
+  # to not conflict with application's logserver.
+  @logserver_spec %{
+    id: LogServer,
+    start: {LogServer, :start_link, [[], [name: :logserver_in_roundtest]]}
+  }
+
   describe "new/1" do
     test "accepts an empty deck as the shoe" do
       game = Round.new("test_round", ~C[])
@@ -21,10 +28,18 @@ defmodule Blackjack.RoundTest do
 
   describe "enter/3" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
-           playerledger_pid <- start_supervised!({LedgerServer, history_pid}, id: :player_ledger),
-           gameledger_pid <- start_supervised!({LedgerServer, history_pid}, id: :game_ledger) do
-        # TODO : open assets and liablities on all ledgers ?? or only in Game/Player modules ?
+      with history_pid <- start_supervised!(@logserver_spec),
+           playerledger_pid <-
+             start_supervised!(%{
+               id: Player_LedgerServer,
+               start: {LedgerServer, :start_link, [history_pid, [name: :player_ledger]]}
+             }),
+           gameledger_pid <-
+             start_supervised!(%{
+               id: Game_LedgerServer,
+               start: {LedgerServer, :start_link, [history_pid, [name: :game_ledger]]}
+             }) do
+        # TODO : open assets and liabilities on all ledgers ?? or only in Game/Player modules ?
         :ok = LedgerServer.open_account(playerledger_pid, :assets, "Assets", :debit)
         :ok = LedgerServer.open_account(gameledger_pid, :assets, "Assets", :debit)
 
@@ -37,17 +52,13 @@ defmodule Blackjack.RoundTest do
     end
 
     test "accepts the avatar and request a bet",
-         %{playerledger_pid: playerledger_pid, gameledger_pid: gameledger_pid} do
-      :ok =
-        LedgerServer.open_account(playerledger_pid, :avatar_test_round, "Avatar Account", :debit)
-
-      _tid = LedgerServer.transfer(playerledger_pid, :assets, :avatar_test_round, 100)
-
-      _avatar_account =
-        Surefire.Accounting.LedgerServer.view(playerledger_pid, :avatar_test_round)
-
+         %{
+           history_pid: history_pid,
+           playerledger_pid: playerledger_pid,
+           gameledger_pid: gameledger_pid
+         } do
       avatar =
-        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :avatar_test_round)
+        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :avatar_test_round, 100)
         |> Surefire.Avatar.with_action(:bet, fn
           av, gl, ra ->
             _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
@@ -55,7 +66,15 @@ defmodule Blackjack.RoundTest do
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
-      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
+
+      _tid =
+        LedgerServer.transfer_debit(
+          gameledger_pid,
+          "Transfer 1000 from game's assets to round",
+          :assets,
+          :test_round,
+          1000
+        )
 
       game =
         Round.new("test_round", Card.deck(), gameledger_pid, :test_round)
@@ -88,9 +107,17 @@ defmodule Blackjack.RoundTest do
 
   describe "deal/2" do
     setup do
-      with history_pid <- start_supervised!(LogServer),
-           playerledger_pid <- start_supervised!({LedgerServer, history_pid}, id: :player_ledger),
-           gameledger_pid <- start_supervised!({LedgerServer, history_pid}, id: :game_ledger) do
+      with history_pid <- start_supervised!(@logserver_spec),
+           playerledger_pid <-
+             start_supervised!(%{
+               id: Player_LedgerServer,
+               start: {LedgerServer, :start_link, [history_pid, [name: :player_ledger]]}
+             }),
+           gameledger_pid <-
+             start_supervised!(%{
+               id: Game_LedgerServer,
+               start: {LedgerServer, :start_link, [history_pid, [name: :game_ledger]]}
+             }) do
         # TODO : open assets and liablities on all ledgers ?? or only in Game/Player modules ?
         :ok = LedgerServer.open_account(playerledger_pid, :assets, "Assets", :debit)
         :ok = LedgerServer.open_account(gameledger_pid, :assets, "Assets", :debit)
@@ -105,11 +132,8 @@ defmodule Blackjack.RoundTest do
 
     test "deals no card when shoe is empty and mark table as void",
          %{playerledger_pid: playerledger_pid, gameledger_pid: gameledger_pid} do
-      :ok = LedgerServer.open_account(playerledger_pid, :bob, "Avatar Bob Account", :debit)
-      _tid = LedgerServer.transfer(playerledger_pid, :assets, :bob, 100)
-
       avatar =
-        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
+        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob, 100)
         |> Surefire.Avatar.with_action(:bet, fn
           av, gl, ra ->
             _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
@@ -117,7 +141,15 @@ defmodule Blackjack.RoundTest do
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
-      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
+
+      _tid =
+        LedgerServer.transfer_debit(
+          gameledger_pid,
+          "Transfer 1000 from game's assets to round",
+          :assets,
+          :test_round,
+          1000
+        )
 
       game =
         Round.new("test_round", [], gameledger_pid, :test_round)
@@ -154,11 +186,8 @@ defmodule Blackjack.RoundTest do
 
     test "deals card to a player with a bet",
          %{playerledger_pid: playerledger_pid, gameledger_pid: gameledger_pid} do
-      :ok = LedgerServer.open_account(playerledger_pid, :bob, "Avatar Bob Account", :debit)
-      _tid = LedgerServer.transfer(playerledger_pid, :assets, :bob, 100)
-
       avatar =
-        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
+        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob, 100)
         |> Surefire.Avatar.with_action(:bet, fn
           av, gl, ra ->
             _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
@@ -166,7 +195,15 @@ defmodule Blackjack.RoundTest do
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
-      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
+
+      _tid =
+        LedgerServer.transfer_debit(
+          gameledger_pid,
+          "Transfer 1000 from game's assets to round",
+          :assets,
+          :test_round,
+          1000
+        )
 
       game =
         Round.new("test_round", ~C[5 8 K]h, gameledger_pid, :test_round)
@@ -197,11 +234,8 @@ defmodule Blackjack.RoundTest do
 
     test "deals no card to a player without a bet",
          %{playerledger_pid: playerledger_pid, gameledger_pid: gameledger_pid} do
-      :ok = LedgerServer.open_account(playerledger_pid, :bob, "Avatar Bob Account", :debit)
-      _tid = LedgerServer.transfer(playerledger_pid, :assets, :bob, 100)
-
       avatar =
-        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob)
+        Surefire.Avatar.new(:bob, :from_test, playerledger_pid, :bob, 100)
         |> Surefire.Avatar.with_action(:bet, fn
           av, gl, ra ->
             _tid = Surefire.Avatar.bet_transfer(av, 45, gl, ra)
@@ -209,7 +243,15 @@ defmodule Blackjack.RoundTest do
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
-      _tid = LedgerServer.transfer(gameledger_pid, :assets, :test_round, 1000)
+
+      _tid =
+        LedgerServer.transfer_debit(
+          gameledger_pid,
+          "Transfer 1000 from game's assets to round",
+          :assets,
+          :test_round,
+          1000
+        )
 
       game =
         Round.new("test_round", ~C[5 8 K]h, gameledger_pid, :test_round)

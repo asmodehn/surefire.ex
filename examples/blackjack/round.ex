@@ -8,7 +8,7 @@ defmodule Blackjack.Round do
   To run a quick game:
 
       iex> me = Surefire.IExPlayer.new(:mememe, 100)
-      iex> {av, me} = me |> Surefire.IExPlayer.avatar("bj_avatar", 50)
+      iex> {av, me} = me |> Surefire.Player.avatar("bj_avatar", 50)
       iex> g = Blackjack.Round.new("demo round", Blackjack.Card.deck() |> Enum.shuffle())
       iex> g = g |> Blackjack.Round.enter(av)
       iex> g = g |> Blackjack.Round.deal()
@@ -24,11 +24,11 @@ defmodule Blackjack.Round do
   @derive {Inspect, only: [:bets, :avatars, :table]}
 
   defstruct id: "the_roundWIP",
+            # TODO : number max of betting boxes ?
             bets: %Bets{},
             avatars: %{},
             ledger_pid: nil,
             account_id: nil,
-            # TODO : number max of betting boxes ? in table instead (has to match the shoe size...) ??
             table: %Table{}
 
   # Note: one player can play multiple  positions/boxes.
@@ -60,10 +60,11 @@ defmodule Blackjack.Round do
 
     {amount, avatar} =
       if round.ledger_pid == nil do
+        # TODO : use concept of `DryAvatar` instead
         Avatar.fake_bet(avatar)
       else
         Avatar.bet(avatar, round.ledger_pid, round.account_id)
-        # TODO : amount or full transaciton id ?? what if fake credits ??
+        # TODO : amount or full transaction id ??
       end
 
     %{
@@ -188,9 +189,9 @@ defmodule Blackjack.Round do
     }
   end
 
-  defimpl Surefire.Round do
-    def id(%Blackjack.Round{} = round) do
-      round.id
-    end
-  end
+  #  defimpl Surefire.Round do
+  #    def id(%Blackjack.Round{} = round) do
+  #      round.id
+  #    end
+  #  end
 end

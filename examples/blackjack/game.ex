@@ -38,7 +38,13 @@ defmodule Blackjack.Game do
     :ok = LedgerServer.open_account(ledger_pid, :assets, "House Assets", :debit)
     :ok = LedgerServer.open_account(ledger_pid, :payments, "Payment", :credit)
 
-    LedgerServer.transfer(ledger_pid, :liabilities, :assets, initial_funds)
+    LedgerServer.transfer_credit(
+      ledger_pid,
+      "Financing #{initial_funds} in Game assets",
+      :liabilities,
+      :assets,
+      initial_funds
+    )
 
     shoe = Card.deck() |> List.duplicate(deck_number) |> List.flatten() |> Enum.shuffle()
 
@@ -59,7 +65,14 @@ defmodule Blackjack.Game do
       ) do
     :ok = LedgerServer.open_account(ledger_pid, id, "Round #{id} Account", :debit)
 
-    :ok = LedgerServer.transfer(ledger_pid, :assets, id, initial_funds)
+    :ok =
+      LedgerServer.transfer_debit(
+        ledger_pid,
+        "Initial funds for Round #{id}",
+        :assets,
+        id,
+        initial_funds
+      )
 
     # Currently: # Game -> Round
     # LATER: something like Player Ledger <-> (Round <- Game)

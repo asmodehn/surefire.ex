@@ -8,14 +8,23 @@ defmodule Surefire.Accounting.LedgerServer do
 
   alias Surefire.Accounting.{LogServer, History, Account, Transaction}
   alias Surefire.Accounting.LedgerServer.Book
+  alias Surefire.Accounting.AccountID
 
   use GenServer
 
   # Client
 
-  def start_link(history_pid \\ LogServer, _opts \\ []) do
+  def start_link(history_pid \\ [], opts \\ [])
+
+  def start_link([], opts) do
+    start_link(Process.whereis(LogServer), opts)
+  end
+
+  # TODO : make history an option, and pass Book as init_arg ??
+  def start_link(history_pid, opts) when is_pid(history_pid) do
     if Process.alive?(history_pid) do
-      GenServer.start_link(__MODULE__, history_pid)
+      name = Keyword.get(opts, :name, __MODULE__)
+      GenServer.start_link(__MODULE__, history_pid, name: name)
     else
       raise RuntimeError, message: "ERROR: #{history_pid} is not started !"
     end
@@ -41,11 +50,22 @@ defmodule Surefire.Accounting.LedgerServer do
     GenServer.call(pid, {:close, id})
   end
 
-  # TODO : various transaction creation
   # depending on possible **internal** operations for this ledger...
-  def transfer(pid, from_account, to_account, amount) do
+  def transfer_debit(pid, descr, from_account, to_account, amount) do
     transaction =
-      Transaction.build("Transfer #{amount} from #{from_account} to #{to_account}")
+      Transaction.build(descr)
+      |> Transaction.with_credit(pid, from_account, amount)
+      |> Transaction.with_debit(pid, to_account, amount)
+
+    # Note: transactions are safe to transfer around: atomic event-like / message-like
+    tid = GenServer.call(pid, {:transfer, transaction})
+
+    tid
+  end
+
+  def transfer_credit(pid, descr, from_account, to_account, amount) do
+    transaction =
+      Transaction.build(descr)
       |> Transaction.with_debit(pid, from_account, amount)
       |> Transaction.with_credit(pid, to_account, amount)
 
@@ -55,16 +75,10 @@ defmodule Surefire.Accounting.LedgerServer do
     tid
   end
 
-  def transfer_to_ledger(from_pid, from_account, to_pid, to_account, amount)
-      when is_pid(from_pid) and is_atom(from_account) and is_pid(to_pid) and is_atom(to_account) do
-    # TODO : add description of a remote ledger ! some kind of name...
-    transaction =
-      Transaction.build("Transfer #{amount} from #{from_account} to #{to_account}")
-      |> Transaction.with_debit(from_pid, from_account, amount)
-      |> Transaction.with_credit(to_pid, to_account, amount)
-
+  # TODO : rename to "record" maybe ?
+  def transfer(pid, %Transaction{} = transaction) do
     # Note: transactions are safe to transfer around: atomic event-like / message-like
-    tid = GenServer.call(from_pid, {:transfer, transaction})
+    tid = GenServer.call(pid, {:transfer, transaction})
 
     tid
   end

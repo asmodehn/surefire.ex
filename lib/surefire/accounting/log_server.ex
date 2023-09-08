@@ -18,30 +18,45 @@ defmodule Surefire.Accounting.LogServer do
   #              chart: %Chart{},
   #  end
 
-  defmodule UnknownAccount do
-    defexception message: "account is unknown", account: nil
+  defmodule UnknownAccounts do
+    defexception message: "accounts are unknown", accounts: nil
+
+    def message(exception) do
+      # TODO : retrieve ledger / playername /gamename ... from pid
+      "Accounts #{exception.accounts |> Kernel.inspect()} are unknown !"
+    end
   end
 
   defmodule UnbalancedTransaction do
     defexception message: "Transaction is unbalanced", transaction: nil
+
+    def message(exception) do
+      "Transaction #{exception.transaction |> Kernel.inspect()} is unbalanced !"
+    end
   end
 
   alias Surefire.Accounting.{History, Transaction}
 
   use GenServer
-  # TODO : maybe GenStage is more appropriate here ???
 
   # Client
+  def start_link(history, opts \\ [])
 
-  def start_link(opts \\ [name: __MODULE__]) do
-    GenServer.start_link(__MODULE__, {}, opts)
+  def start_link([], opts) do
+    start_link(History.new(), opts)
+  end
+
+  def start_link(%History{} = history, opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, history, name: name)
   end
 
   # TODO : various transaction creation depending on possible operations...
-  def commit(pid, %Transaction{} = transaction) do
+  def commit(pid, %Transaction{debit: debits, credit: credits} = transaction)
+      when map_size(debits) != 0 or map_size(credits) != 0 do
     # Note: transactions are safe to transfer around: atomic event-like / message-like
     case GenServer.call(pid, {:commit, transaction}) do
-      {:error, %UnknownAccount{} = ua} -> raise ua
+      {:error, %UnknownAccounts{} = ua} -> raise ua
       {:error, %UnbalancedTransaction{} = ut} -> raise ut
       {:ok, tid} -> tid
     end
@@ -74,18 +89,21 @@ defmodule Surefire.Accounting.LogServer do
   # Server (callbacks)
 
   @impl true
-  def init(_init_arg) do
-    {:ok, History.new()}
+  def init(history) do
+    {:ok, history}
   end
 
   @impl true
   def handle_call({:commit, transaction}, _from, history) do
+    history.accounts |> IO.inspect()
+
     absent_credited =
       Transaction.credited_accounts(transaction)
       |> Enum.map(fn {p, al} ->
         {p, Enum.reject(al, fn a -> a in Map.get(history.accounts, p, []) end)}
       end)
       |> Enum.reject(fn {_, al} -> al == [] end)
+      |> Enum.into(%{})
 
     absent_debited =
       Transaction.debited_accounts(transaction)
@@ -93,13 +111,16 @@ defmodule Surefire.Accounting.LogServer do
         {p, Enum.reject(al, fn a -> a in Map.get(history.accounts, p, []) end)}
       end)
       |> Enum.reject(fn {_, al} -> al == [] end)
+      |> Enum.into(%{})
 
     cond do
-      absent_credited != [] ->
-        {:reply, {:error, %UnknownAccount{account: absent_credited}}, history}
+      absent_credited != %{} ->
+        #      IO.inspect(absent_credited)
+        {:reply, {:error, %UnknownAccounts{accounts: absent_credited}}, history}
 
-      absent_debited != [] ->
-        {:reply, {:error, %UnknownAccount{account: absent_debited}}, history}
+      absent_debited != %{} ->
+        #      IO.inspect(absent_debited)
+        {:reply, {:error, %UnknownAccounts{accounts: absent_debited}}, history}
 
       not Transaction.verify_balanced(transaction) ->
         {:reply, {:error, %UnbalancedTransaction{transaction: transaction}}, history}

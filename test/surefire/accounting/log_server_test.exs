@@ -3,18 +3,40 @@ defmodule Surefire.Accounting.LogServerTest do
 
   alias Surefire.Accounting.{LogServer, History, Transaction}
 
-  describe "start_link/1" do
-    test "starts the Accounting server" do
-      # Note : this will use hte default name -> should be the only test to do so...
-      {:ok, pid} = LogServer.start_link()
+  # childspec for logserver, passing a name,
+  # to not conflict with application's logserver.
+  @logserver_spec %{
+    id: LogServer,
+    start: {LogServer, :start_link, [[], [name: :logserver_in_logservertest]]}
+  }
 
-      assert Process.alive?(pid)
+  describe "start_link/2" do
+    @tag :current
+    test "starts the Accounting server with the passed history and name" do
+      proc_name = :logserver_in_logservertest
+      h = History.new()
+      {:ok, pid} = LogServer.start_link(h, name: proc_name)
+
+      assert Process.whereis(proc_name) == pid
+      assert :sys.get_state(proc_name) == h
+    end
+
+    test "creates a new history if [] is passed as initial argument" do
+      proc_name = :logserver_in_logservertest
+
+      {:ok, pid} = LogServer.start_link([], name: proc_name)
+
+      assert Process.whereis(proc_name) == pid
+      %History{transactions: ts, last_committed_id: lci} = :sys.get_state(proc_name)
+
+      assert ts == %{}
+      assert lci == nil
     end
   end
 
   describe "chunk/2" do
     setup do
-      with pid <- start_supervised!(LogServer) do
+      with pid <- start_supervised!(@logserver_spec) do
         LogServer.open_account(pid, self(), :alice)
         LogServer.open_account(pid, self(), :bob)
 
@@ -78,7 +100,7 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "last_committed_id" do
     setup do
-      with pid <- start_supervised!(LogServer) do
+      with pid <- start_supervised!(@logserver_spec) do
         LogServer.open_account(pid, self(), :alice)
         LogServer.open_account(pid, self(), :bob)
         %{accounting_srv: pid}
@@ -100,7 +122,7 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "commit/4" do
     setup do
-      with pid <- start_supervised!(LogServer) do
+      with pid <- start_supervised!(@logserver_spec) do
         LogServer.open_account(pid, self(), :alice)
         LogServer.open_account(pid, self(), :bob)
         %{accounting_srv: pid}
@@ -139,7 +161,7 @@ defmodule Surefire.Accounting.LogServerTest do
         |> Transaction.with_debit(self(), :charlie, 42)
         |> Transaction.with_credit(self(), :bob, 42)
 
-      assert_raise(LogServer.UnknownAccount, fn ->
+      assert_raise(LogServer.UnknownAccounts, fn ->
         LogServer.commit(accounting_srv, t1)
       end)
     end
@@ -153,7 +175,7 @@ defmodule Surefire.Accounting.LogServerTest do
         |> Transaction.with_debit(self(), :alice, 42)
         |> Transaction.with_credit(self(), :charlie, 42)
 
-      assert_raise(LogServer.UnknownAccount, fn ->
+      assert_raise(LogServer.UnknownAccounts, fn ->
         LogServer.commit(accounting_srv, t1)
       end)
     end
@@ -175,24 +197,49 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "open_account/3" do
     setup do
-      with pid <- start_supervised!(LogServer) do
-        %{accounting_srv: pid}
+      with pid <- start_supervised!(@logserver_spec),
+           useless_srv <- Process.spawn(fn -> [] end, [:link]) do
+        %{accounting_srv: pid, fake_pid: useless_srv}
       end
     end
 
-    test "opens an account and accepts matching transactions",
+    test "opens an account on same ledger and accepts matching transactions",
          %{accounting_srv: pid} do
-      :ok = LogServer.open_account(pid, self(), :test_account)
+      :ok = LogServer.open_account(pid, self(), :test_send)
+      :ok = LogServer.open_account(pid, self(), :test_receive)
 
-      assert LogServer.accounts(pid, self()) == [:test_account]
-      # TODO : test transactions
+      assert :test_send in LogServer.accounts(pid, self())
+      assert :test_receive in LogServer.accounts(pid, self())
+
+      t_test =
+        Transaction.build("test transaction")
+        |> Transaction.with_debit(self(), :test_send, 42)
+        |> Transaction.with_credit(self(), :test_receive, 42)
+
+      LogServer.commit(pid, t_test)
+    end
+
+    test "opens an account on another ledger and accepts matching transactions",
+         %{accounting_srv: pid, fake_pid: useless_srv} do
+      :ok = LogServer.open_account(pid, self(), :test_send)
+      :ok = LogServer.open_account(pid, useless_srv, :test_receive)
+
+      assert :test_send in LogServer.accounts(pid, self())
+      assert :test_receive in LogServer.accounts(pid, useless_srv)
+
+      t_test =
+        Transaction.build("test transaction")
+        |> Transaction.with_debit(self(), :test_send, 42)
+        |> Transaction.with_credit(useless_srv, :test_receive, 42)
+
+      LogServer.commit(pid, t_test)
     end
   end
 
   # TODO: maybe review account management API ?
   describe "accounts/2" do
     setup do
-      with pid <- start_supervised!(LogServer) do
+      with pid <- start_supervised!(@logserver_spec) do
         %{accounting_srv: pid}
       end
     end
@@ -211,7 +258,7 @@ defmodule Surefire.Accounting.LogServerTest do
 
   describe "close_account/3" do
     setup do
-      with pid <- start_supervised!(LogServer) do
+      with pid <- start_supervised!(@logserver_spec) do
         %{accounting_srv: pid}
       end
     end
@@ -225,6 +272,15 @@ defmodule Surefire.Accounting.LogServerTest do
       :ok = LogServer.close_account(pid, self(), :test_account)
 
       assert LogServer.accounts(pid, self()) == nil
+
+      t_test =
+        Transaction.build("test transaction")
+        |> Transaction.with_debit(self(), :test_account, 42)
+        |> Transaction.with_credit(self(), :test_account, 42)
+
+      assert_raise(LogServer.UnknownAccounts, fn ->
+        LogServer.commit(pid, t_test)
+      end)
     end
   end
 end

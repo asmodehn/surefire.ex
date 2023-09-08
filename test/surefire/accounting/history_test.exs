@@ -16,8 +16,6 @@ defmodule Surefire.Accounting.HistoryTest do
   end
 
   describe "commit/2" do
-    # TODO : verify transaction is refused if one account doesnt exists
-    # TODO : verify transaction is accepted if all accounts exist
     test "stores a balanced transaction in the history and remember its id" do
       t =
         Transaction.build("test description")
