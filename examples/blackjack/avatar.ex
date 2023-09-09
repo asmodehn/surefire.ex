@@ -11,7 +11,6 @@ defprotocol Blackjack.Avatar do
   """
 
   def id(avatar)
-  def player_id(avatar)
 
   # TODO : maybe another kind of "bet" when there is no transaction involved ?
   def fake_bet(avatar)
@@ -32,7 +31,6 @@ defmodule Blackjack.Dealer do
       dealer.id
     end
 
-    def player_id(_dealer), do: nil
 
     # never called
     def fake_bet(_avatar), do: nil
@@ -63,9 +61,6 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     avatar.id
   end
 
-  def player_id(%Surefire.Avatar{} = avatar) do
-    avatar.player_id
-  end
 
   # default to nil for game ledger and round account, in case we do not want any proper accounting (dry-run)
   def fake_bet(%Surefire.Avatar{actions: actions} = avatar)
@@ -130,7 +125,7 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
   end
 
   def gain(%Surefire.Avatar{} = avatar, %AccountID{} = round_account_id, amount) do
-    Surefire.Avatar.tell("You gained #{amount}")
+    Surefire.Avatar.tell(avatar, "You gained #{amount}")
 
     _tid = Surefire.Avatar.gain_transfer(avatar, amount, round_account_id)
     # TODO : return TID + amount as usable reference ?

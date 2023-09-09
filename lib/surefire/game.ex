@@ -1,34 +1,57 @@
-defprotocol Surefire.Game do
+ defprotocol Surefire.Game do
   @moduledoc ~s"""
-    This module describe the common interface, mandatory for any and all games.
-    This interface is aimed to be easily embedded in a Process, to keep state isolated.
-
-    Therefore, Surefire also provide a Module defining this process for convenience
+  Round protocol to allow a Game to manipulate any rounds in the same way.
   """
 
-  def new(game)
-  def enter(game, player)
+  def id(round)
 
-  def play(game)
-  # Note play can be complex.
-  # If problem -> crash -> every player is refunded.
-end
+  def enter(round, avatar)
 
-defmodule Surefire.Game do
-  alias Surefire.Accounting.LedgerServer
-end
+  def play(round)
 
-# Note : there are mutliple players in a game.
-# To be able to easily do:
-# updated_game = for p <- players, reduce: game do
-#     game -> update(game, p)
+ end
+#
+#
+# defmodule Surefire.TestGame do
+#
+#  defstruct id: nil
+#
+#
+#  def new(id) do
+#    %__MODULE__{id: id}
+#  end
+#
+#
+#  def turn(%__MODULE__{} = game, avatar) do
+#
+#    # propose opportunities to avatar
+#    # avatar bet on some opportunities
+#    # random roll / game decision
+#    # potential payback
+#
+#    # loop...
+#
+#  end
+#
+#
+#  defimpl Surefire.Game do
+#
+#    def id(game) do
+#      game.id
+#    end
+#
+#    def enter(game, avatar) do
+#
+#
+#
+#
+#    end
+#
+#    def play(game) do
+#
+#    end
+#
+#
+#  end
+#
 # end
-#
-# We need a game/player model that "implicitly" reduce...
-# - get inspirations from CRDTs ??
-# - design an "inner module" only for reduceable player actions ?
-# - other solution ??
-# CAREFUL : the way these reduce ARE part of the game rules
-#
-# => make game a collectable ??
-# Note : if we keep track of all actions, we can make it an enumerable as well ?? -> allows replays

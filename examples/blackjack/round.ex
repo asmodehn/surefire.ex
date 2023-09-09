@@ -125,22 +125,6 @@ defmodule Blackjack.Round do
     }
   end
 
-  @doc """
-  play/1 is useful for simple interactive play.
-  """
-  def full_play(%__MODULE__{avatars: avatars} = game) do
-    game
-    |> deal()
-    |> play()
-    |> play(:dealer)
-
-    # TODO : integrate resolve here !
-
-    # TODO : this is the interface for the Surefire.Round protocol...
-
-    # TODO : maybe better to do a map() on values directly ??
-  end
-
   # TODO : resolve and play should be the same (bust allowed during play, void possible in play, etc.)
   @doc ~s"""
     To the end, where the dealer get cards until >17
@@ -185,9 +169,25 @@ defmodule Blackjack.Round do
     %{round | bets: bets}
   end
 
-  #  defimpl Surefire.Round do
-  #    def id(%Blackjack.Round{} = round) do
-  #      round.id
-  #    end
-  #  end
+    defimpl Surefire.Game do
+      def id(%Blackjack.Round{} = round) do
+        round.id
+      end
+
+      def enter(%Blackjack.Round{} = round, avatar) do
+        enter(round, avatar)
+      end
+
+              @doc """
+  play/1 is useful for simple interactive play.
+  """
+  def play(%Blackjack.Round{avatars: avatars} = game) do
+    game
+    |> Blackjack.Round.deal()
+    |> Blackjack.Round.play()
+    |> Blackjack.Round.play(:dealer)
+    |> Blackjack.Round.resolve()
+
+  end
+    end
 end
