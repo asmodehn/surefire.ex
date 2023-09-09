@@ -123,18 +123,18 @@ defmodule Surefire.Accounting do
       ) do
     :ok = LedgerServer.open_account(ledger_pid, id, "#{id} Account", :debit)
 
-    tid =
+    _tid =
       if from.ledger_pid == ledger_pid do
         LedgerServer.transfer_debit(
           ledger_pid,
-          "Creating Avatar #{id}",
+          "Opening Debit account #{id}",
           from.account_id,
           id,
           amount
         )
       else
         t =
-          transaction("Creating Avatar #{id}")
+          transaction("Opening Debit account #{id}")
           |> debit_from(from, amount)
           |> debit_to(to, amount)
 
@@ -149,18 +149,18 @@ defmodule Surefire.Accounting do
       ) do
     :ok = LedgerServer.open_account(ledger_pid, id, "#{id} Account", :credit)
 
-    tid =
+    _tid =
       if from.ledger_pid == ledger_pid do
         LedgerServer.transfer_credit(
           ledger_pid,
-          "Creating Avatar #{id}",
+          "Opening Credit account #{id}",
           from.account_id,
           id,
           amount
         )
       else
         t =
-          transaction("Creating Avatar #{id}")
+          transaction("Opening Credit account #{id}")
           |> credit_from(from, amount)
           |> credit_to(to, amount)
 

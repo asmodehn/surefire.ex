@@ -155,7 +155,6 @@ defmodule Blackjack.TableTest do
   end
 
   describe "resolve/2" do
-    @tag :current
     test "decide :lose early if a player busts" do
       table =
         Table.new(~C[9 10 J]h)

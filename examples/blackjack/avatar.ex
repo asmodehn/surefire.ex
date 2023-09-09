@@ -15,8 +15,9 @@ defprotocol Blackjack.Avatar do
 
   # TODO : maybe another kind of "bet" when there is no transaction involved ?
   def fake_bet(avatar)
-  def bet(avatar, game_ledger_pid, round_account_id)
+  def bet(avatar, round_account_id)
   def hit_or_stand(avatar, hand, dealer_hand)
+  def gain(avatar, round_account_id, amount)
 end
 
 defmodule Blackjack.Dealer do
@@ -31,21 +32,32 @@ defmodule Blackjack.Dealer do
       dealer.id
     end
 
-    def player_id(dealer), do: nil
+    def player_id(_dealer), do: nil
 
-    def hit_or_stand(%Blackjack.Dealer{} = dealer, hand, _dealer_hand \\ nil) do
+    # never called
+    def fake_bet(_avatar), do: nil
+    # never called
+    def bet(_avatar, _round_account_id), do: nil
+
+    def hit_or_stand(%Blackjack.Dealer{} = _dealer, hand, _dealer_hand \\ nil) do
       if hand.value >= 17 do
         :stand
       else
         :hit
       end
     end
+
+    # TODO : something to do here ?? what happens to funds ??
+    def gain(avatar, round_account_id, amount), do: nil
+    # TODO: increase Round account in its ledger...
   end
 end
 
 defimpl Blackjack.Avatar, for: Surefire.Avatar do
   # Note: player can be implemented in surefire side.
   # BUT: Avatar depends on the game and is implemented game side...
+
+  alias Surefire.Accounting.AccountID
 
   def id(%Surefire.Avatar{} = avatar) do
     avatar.id
@@ -72,18 +84,18 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     {amount, avatar}
   end
 
-  def bet(%Surefire.Avatar{actions: actions} = avatar, game_ledger_pid, round_account_id)
-      when is_map_key(actions, :bet) and is_pid(game_ledger_pid) and is_atom(round_account_id) do
+  def bet(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id)
+      when is_map_key(actions, :bet) do
     # attempt automation
-    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet, game_ledger_pid, round_account_id)
+    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet, round_account_id)
+    {bet, avatar}
   end
 
-  def bet(%Surefire.Avatar{} = avatar, game_ledger_pid, round_account_id)
-      when is_pid(game_ledger_pid) and is_atom(round_account_id) do
+  def bet(%Surefire.Avatar{} = avatar, %AccountID{} = round_account_id) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
     {amount, ""} = Integer.parse(answer)
 
-    _tid = Surefire.Avatar.bet_transfer(avatar, amount, game_ledger_pid, round_account_id)
+    _tid = Surefire.Avatar.bet_transfer(avatar, amount, round_account_id)
     # TODO : return TID + amount as usable reference ?
     {amount, avatar}
   end
@@ -108,5 +120,20 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
         "I'm good" => :stand
       }
     )
+  end
+
+  def gain(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id, amount)
+      when is_map_key(actions, :gain) do
+    # attempt automation
+    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :gain, round_account_id)
+    {bet, avatar}
+  end
+
+  def gain(%Surefire.Avatar{} = avatar, %AccountID{} = round_account_id, amount) do
+    Surefire.Avatar.tell("You gained #{amount}")
+
+    _tid = Surefire.Avatar.gain_transfer(avatar, amount, round_account_id)
+    # TODO : return TID + amount as usable reference ?
+    {amount, avatar}
   end
 end

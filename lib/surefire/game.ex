@@ -14,10 +14,7 @@ defprotocol Surefire.Game do
   # If problem -> crash -> every player is refunded.
 end
 
-defmodule Surefire.TestGame do
-end
-
-defmodule Surefire.IExGame do
+defmodule Surefire.Game do
   alias Surefire.Accounting.LedgerServer
 end
 

@@ -13,21 +13,22 @@ defmodule Blackjack.Round do
       iex> g = g |> Blackjack.Round.enter(av)
       iex> g = g |> Blackjack.Round.deal()
       iex> g = g |> Blackjack.Round.play()
+      iex> g = g |> Blackjack.Round.play(:dealer)
       iex> g = g |> Blackjack.Round.resolve()
   """
 
   alias Blackjack.{Bets, Table, Avatar}
   #  alias Blackjack.Event.{PlayerExit}
 
-  alias Surefire.Accounting.{Account, Transaction}
+  alias Surefire.Accounting.{Account, Transaction, AccountID}
 
   @derive {Inspect, only: [:bets, :avatars, :table]}
 
   defstruct id: "the_roundWIP",
             # TODO : number max of betting boxes ?
+            # TODO : add transactions id in bets ?
             bets: %Bets{},
             avatars: %{},
-            ledger_pid: nil,
             account_id: nil,
             table: %Table{}
 
@@ -43,13 +44,11 @@ defmodule Blackjack.Round do
     }
   end
 
-  def new(id, shoe, ledger_pid, account_id)
-      when is_pid(ledger_pid) and is_atom(account_id) do
+  def new(id, shoe, %AccountID{} = account_id) do
     %{
       %__MODULE__{}
       | id: id,
         table: Table.new(shoe),
-        ledger_pid: ledger_pid,
         account_id: account_id
     }
   end
@@ -59,11 +58,11 @@ defmodule Blackjack.Round do
     # TODO : make sure avatar implements avatar behaviour...
 
     {amount, avatar} =
-      if round.ledger_pid == nil do
+      if round.account_id == nil do
         # TODO : use concept of `DryAvatar` instead
         Avatar.fake_bet(avatar)
       else
-        Avatar.bet(avatar, round.ledger_pid, round.account_id)
+        Avatar.bet(avatar, round.account_id)
         # TODO : amount or full transaction id ??
       end
 
@@ -99,14 +98,22 @@ defmodule Blackjack.Round do
   @doc ~s"""
     The play phase, where each player makes decisions, and cards are dealt
   """
-  def play(%__MODULE__{} = game, avatar_ids)
-      when is_list(avatar_ids) do
-    for a_id <- avatar_ids, reduce: game do
+  def play(%__MODULE__{avatars: avatars} = game) do
+    for a_id <- Map.keys(avatars), reduce: game do
       game -> game |> play(a_id)
     end
   end
 
-  def play(%__MODULE__{table: table} = game, %Surefire.Avatar{} = avatar) do
+  def play(%__MODULE__{} = game, :dealer) do
+    game |> play(%Blackjack.Dealer{})
+  end
+
+  def play(%__MODULE__{avatars: avatars} = game, avatar_id)
+      when is_atom(avatar_id) and is_map_key(avatars, avatar_id) do
+    game |> play(avatars[avatar_id])
+  end
+
+  def play(%__MODULE__{table: table} = game, avatar) do
     %{
       game
       | table:
@@ -118,23 +125,18 @@ defmodule Blackjack.Round do
     }
   end
 
-  def play(%__MODULE__{} = game, :dealer) do
-    # TODO : double check this !
-    game |> play(%Blackjack.Dealer{})
-  end
-
-  def play(%__MODULE__{avatars: avatars} = game, avatar_id) do
-    game |> play(avatars[avatar_id])
-  end
-
   @doc """
   play/1 is useful for simple interactive play.
-  it relies on player_choice/2 for prompting the user in IEx.
   """
-  def play(%__MODULE__{avatars: avatars} = game) do
+  def full_play(%__MODULE__{avatars: avatars} = game) do
     game
-    # TODO : dealer play here instead of in resolve !!
-    |> play(Map.keys(avatars))
+    |> deal()
+    |> play()
+    |> play(:dealer)
+
+    # TODO : integrate resolve here !
+
+    # TODO : this is the interface for the Surefire.Round protocol...
 
     # TODO : maybe better to do a map() on values directly ??
   end
@@ -146,47 +148,41 @@ defmodule Blackjack.Round do
   def resolve(%__MODULE__{table: table, avatars: avatars} = g) do
     updated_table =
       table
-      |> Table.play(:dealer, fn
-        dh, dh -> Blackjack.Avatar.hit_or_stand(%Blackjack.Dealer{}, dh, dh)
-      end)
       |> Table.resolve()
 
     if updated_table.result == :void do
       {%{g | table: updated_table}, [:game_is_void]}
     else
-      for {p, wl} <- updated_table.result, reduce: {%{g | table: updated_table}, []} do
-        {acc, evt} ->
+      for {p, wl} <- updated_table.result, reduce: %{g | table: updated_table} do
+        acc ->
           case wl do
             :win ->
-              {updated_acc, generated_evts} = player_win(acc, avatars[p])
-              {updated_acc, evt ++ generated_evts}
+              updated_acc = player_win(acc, avatars[p])
 
             :lose ->
-              {updated_acc, generated_evts} = player_lose(acc, avatars[p])
-              {updated_acc, evt ++ generated_evts}
+              updated_acc = player_lose(acc, avatars[p])
           end
       end
     end
   end
 
-  def player_win(%__MODULE__{bets: bets} = game, avatar) do
+  def player_win(%__MODULE__{bets: bets} = round, avatar) do
     {player_bet, bets} = bets |> Bets.player_end(avatar.id)
 
-    {
-      %{game | bets: bets},
-      # TODO : review this as a transaction
-      [%Blackjack.Event.PlayerExit{id: avatar.player_id, gain: player_bet * 2}]
-    }
+    _tid =
+      if round.account_id != nil do
+        Avatar.gain(avatar, round.account_id, player_bet * 2)
+      end
+
+    %{round | bets: bets}
   end
 
-  def player_lose(%__MODULE__{bets: bets} = table, avatar) do
+  def player_lose(%__MODULE__{bets: bets} = round, avatar) do
     {_player_bet, bets} = bets |> Bets.player_end(avatar.id)
 
-    {
-      %{table | bets: bets},
-      # TODO : review this as a transaction
-      [%Blackjack.Event.PlayerExit{id: avatar.player_id, gain: 0}]
-    }
+    # On loss : no transaction, funds already on round account
+    # => will be transferred back to Surefire.Game after the end of the round.
+    %{round | bets: bets}
   end
 
   #  defimpl Surefire.Round do

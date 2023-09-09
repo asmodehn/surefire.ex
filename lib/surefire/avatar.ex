@@ -6,17 +6,6 @@
 #  """
 # end
 
-# defmodule Surefire.Avatar.Random do
-#  @moduledoc """
-#  This avatar decides randomly
-#  """
-#
-#  @behaviour Surefire.Avatar.Behaviour
-#
-#  @impl true
-#
-# end
-
 defmodule Surefire.DryAvatar do
   @moduledoc ~s"""
   Avatar without any credits or capabilities for transactions.
@@ -36,42 +25,27 @@ defmodule Surefire.Avatar do
   alias Surefire.Accounting.{LedgerServer, AccountID}
 
   defstruct id: nil,
-            # TODO: player_id is TMP and should not be needed when we can use transaction for gains.
-            player_id: nil,
-            # TODO : BUT this is useful to find remote ledger server...
-            # TODO : rename to ledger_pid, or using AccountID
-            player_pid: nil,
             account_id: nil,
             actions: %{}
 
-  def new(id, player_id) do
+  def new(id) do
     %__MODULE__{
-      id: id,
-      player_id: player_id
+      id: id
     }
 
     # TODO : no transaction -> fake bets -> dry-run
   end
 
-  def new(id, player_id, ledger_pid, account_id, funds \\ 0) do
+  def new(id, %AccountID{} = player_account, %AccountID{} = account_id, funds \\ 0) do
     # create an account for the avatar in player ledger
-    LedgerServer.open_account(ledger_pid, account_id, "#{id} Account", :debit)
 
-    _tid =
-      if funds > 0 do
-        LedgerServer.transfer_debit(
-          ledger_pid,
-          "Creating Avatar #{id}",
-          :assets,
-          account_id,
-          funds
-        )
-      end
+    Surefire.Accounting.open_debit(account_id,
+      from: player_account,
+      amount: funds
+    )
 
     %__MODULE__{
       id: id,
-      player_id: player_id,
-      player_pid: ledger_pid,
       account_id: account_id
     }
 
@@ -134,6 +108,10 @@ defmodule Surefire.Avatar do
     ExPrompt.string_required(prompt)
   end
 
+  def tell(%__MODULE__{} = _avatar, message) do
+    IO.puts(message)
+  end
+
   def fake_bet_transfer(
         %__MODULE__{} = _avatar,
         _amount
@@ -142,30 +120,44 @@ defmodule Surefire.Avatar do
   end
 
   def bet_transfer(
-        %__MODULE__{player_pid: ledger_pid, account_id: account_id} = avatar,
+        %__MODULE__{account_id: account_id} = avatar,
         amount,
-        game_ledger_pid,
-        round_account_id
+        %AccountID{} = round_account_id
       ) do
     t =
       Surefire.Accounting.transaction(
         # TODO : improve description...
-        "#{avatar.id} transfer bet of #{amount} to #{round_account_id}"
+        "#{avatar.id} transfer bet of #{amount} to #{round_account_id.account_id}"
       )
       |> Surefire.Accounting.debit_from(
-        %AccountID{ledger_pid: ledger_pid, account_id: account_id},
+        account_id,
         amount
       )
       |> Surefire.Accounting.debit_to(
-        %AccountID{ledger_pid: game_ledger_pid, account_id: round_account_id},
+        round_account_id,
         amount
       )
 
-    LedgerServer.transfer(ledger_pid, t)
+    LedgerServer.transfer(account_id.ledger_pid, t)
   end
 
-  def request_funding(%__MODULE__{player_id: player_id} = avatar, amount) do
-    # TODO : this semantics is handled by LedgerServer.transfer_credit/* (doesnt wait for authorization tho)
-    Surefire.Player.request_funding(player_id, avatar.id, amount)
+  def gain_transfer(
+        %__MODULE__{account_id: account_id} = avatar,
+        amount,
+        %AccountID{} = round_account_id
+      ) do
+    t =
+      Surefire.Accounting.transaction(
+        "#{avatar.id} transfer gains of #{amount} from #{round_account_id.account_id}"
+      )
+      |> Surefire.Accounting.debit_from(round_account_id, amount)
+      |> Surefire.Accounting.debit_to(account_id, amount)
+
+    LedgerServer.transfer(account_id.ledger_pid, t)
   end
+
+  #  def request_funding(%__MODULE__{player_id: player_id} = avatar, amount) do
+  #    # TODO : this semantics is handled by LedgerServer.transfer_credit/* (doesnt wait for authorization tho)
+  #    Surefire.Player.request_funding(player_id, avatar.id, amount)
+  #  end
 end

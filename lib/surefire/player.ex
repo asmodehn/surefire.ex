@@ -13,6 +13,7 @@ defprotocol Surefire.Player do
 
   def get(player, gain)
   # or a way to reduce avatars into player ??
+  # => simply via closing accounts ???
 
   def avatar(player, prefix, funds)
 
@@ -26,8 +27,7 @@ defmodule Surefire.TestPlayer do
   defstruct id: nil,
             ledger: nil,
             avatars: %{},
-            avatar_counter: 0,
-            action_plan: %{}
+            avatar_counter: 0
 
   def new(id, initial_assets) do
     {:ok, ledger_pid} = GenServer.start_link(LedgerServer, Surefire.Accounting.LogServer)
@@ -47,10 +47,6 @@ defmodule Surefire.TestPlayer do
       id: id,
       ledger: ledger_pid
     }
-  end
-
-  def with_action(%__MODULE__{} = player, fun_name, fun_body) do
-    %{player | action_plan: player.action_plan |> Map.put(fun_name, fun_body)}
   end
 
   # TODO : decorate iex session to show name of player ?
@@ -100,15 +96,19 @@ defmodule Surefire.TestPlayer do
       avatar_id = (avatar_id_prefix <> "#{player.avatar_counter}") |> String.to_atom()
       # TODO : unicity of avatar id !! BEFORE doing transaction...
 
-      #    # create an account for the avatar in players ledger
-      #    LedgerServer.open_account(ledger_pid, avatar_id, "#{avatar_id} Account", :debit)
-      #    LedgerServer.transfer_debit(ledger_pid, "Funding Avatar #{avatar_id}", :assets, avatar_id, funds)
-
       # Currently: # Player -> Avatar
       # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
 
-      # the Account is mirrored there (but the ledger is not passed -> no transfer available)
-      avatar = Surefire.Avatar.new(avatar_id, player.id, ledger_pid, avatar_id, funds)
+      avatar =
+        Surefire.Avatar.new(
+          avatar_id,
+          assets(player),
+          %AccountID{
+            ledger_pid: ledger_pid,
+            account_id: avatar_id
+          },
+          funds
+        )
 
       # return the avatar with the account id (as pointer to create a transaction)
       # TODO : update avatar in player ? or useless ??
@@ -212,15 +212,19 @@ defmodule Surefire.IExPlayer do
       avatar_id = (avatar_id_prefix <> "#{player.avatar_counter}") |> String.to_atom()
       # TODO : unicity of avatar id !! BEFORE doing transaction...
 
-      # create an account for the avatar in players ledger
-      #    LedgerServer.open_account(ledger_pid, avatar_id, "#{avatar_id} Account", :debit)
-      #    LedgerServer.transfer_debit(ledger_pid, "Funding #{avatar_id}", :assets, avatar_id, funds)
-
       # Currently: # Player -> Avatar
       # LATER: something like (Player Assets -> Avatar )<-> (Game Ledger)
 
-      # we pass the ledger pid and the avatar account id to be able to access it.
-      avatar = Surefire.Avatar.new(avatar_id, player.id, ledger_pid, avatar_id, funds)
+      avatar =
+        Surefire.Avatar.new(
+          avatar_id,
+          assets(player),
+          %AccountID{
+            ledger_pid: ledger_pid,
+            account_id: avatar_id
+          },
+          funds
+        )
 
       # return the avatar with the account id (as pointer to create a transaction)
       # TODO : update avatar in player ? or useless ??
