@@ -1,0 +1,6 @@
+defmodule Surefire.Automatable do
+  # TODO : a way to dynamically program functions in a module...
+  # First attempt is currently in Avatar, for test automatisation
+  # We need to make it more user friendly somehow...
+  # And use it for Player.
+end

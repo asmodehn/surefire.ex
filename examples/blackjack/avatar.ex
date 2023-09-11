@@ -31,7 +31,6 @@ defmodule Blackjack.Dealer do
       dealer.id
     end
 
-
     # never called
     def fake_bet(_avatar), do: nil
     # never called
@@ -61,14 +60,13 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     avatar.id
   end
 
-
-  # default to nil for game ledger and round account, in case we do not want any proper accounting (dry-run)
-  def fake_bet(%Surefire.Avatar{actions: actions} = avatar)
-      when is_map_key(actions, :bet) do
-    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet)
-
-    {bet, avatar}
-  end
+  #  # default to nil for game ledger and round account, in case we do not want any proper accounting (dry-run)
+  #  def fake_bet(%Surefire.Avatar{actions: actions} = avatar)
+  #      when is_map_key(actions, :bet) do
+  #    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet)
+  #
+  #    {bet, avatar}
+  #  end
 
   def fake_bet(%Surefire.Avatar{} = avatar) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
@@ -79,12 +77,12 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     {amount, avatar}
   end
 
-  def bet(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id)
-      when is_map_key(actions, :bet) do
-    # attempt automation
-    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet, round_account_id)
-    {bet, avatar}
-  end
+  #  def bet(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id)
+  #      when is_map_key(actions, :bet) do
+  #    # attempt automation
+  #    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :bet, round_account_id)
+  #    {bet, avatar}
+  #  end
 
   def bet(%Surefire.Avatar{} = avatar, %AccountID{} = round_account_id) do
     answer = Surefire.Avatar.ask(avatar, "How much do you want to bet ?")
@@ -95,19 +93,19 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     {amount, avatar}
   end
 
-  def hit_or_stand(%Surefire.Avatar{actions: actions} = avatar, hand, dealer_hand)
-      when is_map_key(actions, :hit_or_stand) do
-    # attempt automation
-    Surefire.Avatar.call_action(avatar, :hit_or_stand, hand, dealer_hand)
-  end
+  #  def hit_or_stand(%Surefire.Avatar{actions: actions} = avatar, hand, dealer_hand)
+  #      when is_map_key(actions, :hit_or_stand) do
+  #    # attempt automation
+  #    Surefire.Avatar.call_action(avatar, :hit_or_stand, hand, dealer_hand)
+  #  end
 
   def hit_or_stand(%Surefire.Avatar{} = avatar, hand, dealer_hand) do
     # otherwise interactive
     Surefire.Avatar.decide(
       avatar,
       """
-      #{id(avatar)} position at #{hand.value}.
-      Dealer at #{dealer_hand.value}.
+      #{id(avatar)} hand is #{hand}.
+      Dealer hand is #{dealer_hand}.
       What to do ?
       """,
       %{
@@ -117,12 +115,12 @@ defimpl Blackjack.Avatar, for: Surefire.Avatar do
     )
   end
 
-  def gain(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id, amount)
-      when is_map_key(actions, :gain) do
-    # attempt automation
-    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :gain, round_account_id)
-    {bet, avatar}
-  end
+  #  def gain(%Surefire.Avatar{actions: actions} = avatar, %AccountID{} = round_account_id, amount)
+  #      when is_map_key(actions, :gain) do
+  #    # attempt automation
+  #    {bet, avatar} = Surefire.Avatar.call_mutation(avatar, :gain, round_account_id)
+  #    {bet, avatar}
+  #  end
 
   def gain(%Surefire.Avatar{} = avatar, %AccountID{} = round_account_id, amount) do
     Surefire.Avatar.tell(avatar, "You gained #{amount}")

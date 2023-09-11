@@ -53,7 +53,6 @@ defmodule Blackjack.RoundTest do
 
     test "accepts the avatar and request a bet",
          %{
-           history_pid: history_pid,
            playerledger_pid: playerledger_pid,
            gameledger_pid: gameledger_pid
          } do
@@ -70,10 +69,11 @@ defmodule Blackjack.RoundTest do
           },
           100
         )
-        |> Surefire.Avatar.with_action(:bet, fn
-          av, %AccountID{} = ra ->
-            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
-            {45, av}
+        |> Surefire.Avatar.automatize(:ask, fn _p ->
+          "45"
+          #          av, %AccountID{} = ra ->
+          #            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
+          #            {45, av}
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
@@ -104,7 +104,7 @@ defmodule Blackjack.RoundTest do
     test "accepts the avatar and request a fake bet, without transaction" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new(
@@ -159,11 +159,13 @@ defmodule Blackjack.RoundTest do
           },
           100
         )
-        |> Surefire.Avatar.with_action(:bet, fn
-          av, %AccountID{} = ra ->
-            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
-            {45, av}
-        end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
+
+      #        |> Surefire.Avatar.automatize(bet_transfer)
+      #          av, %AccountID{} = ra ->
+      #            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
+      #            {45, av}
+      #        end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
 
@@ -197,7 +199,7 @@ defmodule Blackjack.RoundTest do
     test "deals no card when shoe is empty and mark table as void without ledgers" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new("test_round", [])
@@ -227,10 +229,11 @@ defmodule Blackjack.RoundTest do
           },
           100
         )
-        |> Surefire.Avatar.with_action(:bet, fn
-          av, %AccountID{} = ra ->
-            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
-            {45, av}
+        |> Surefire.Avatar.automatize(:ask, fn _p ->
+          "45"
+          #          av, %AccountID{} = ra ->
+          #            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
+          #            {45, av}
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
@@ -261,7 +264,7 @@ defmodule Blackjack.RoundTest do
     test "deals card to a player with a bet without ledgers" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new("test_round", ~C[5 8 K]h)
@@ -289,10 +292,11 @@ defmodule Blackjack.RoundTest do
           },
           100
         )
-        |> Surefire.Avatar.with_action(:bet, fn
-          av, %AccountID{} = ra ->
-            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
-            {45, av}
+        |> Surefire.Avatar.automatize(:ask, fn _p ->
+          "45"
+          #          av, %AccountID{} = ra ->
+          #            _tid = Surefire.Avatar.bet_transfer(av, 45, ra)
+          #            {45, av}
         end)
 
       :ok = LedgerServer.open_account(gameledger_pid, :test_round, "Test Round Account", :debit)
@@ -322,7 +326,7 @@ defmodule Blackjack.RoundTest do
     test "deals no card to a player without a bet, without ledgers" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new("test_round", ~C[5 8 K]h)
@@ -338,22 +342,25 @@ defmodule Blackjack.RoundTest do
   describe "play/2" do
     # TODO : transactions here when "double" or "split"
 
-    test "calls player_request with player hand and dealer hand" do
-      bob_request = fn
-        ph, dh -> raise "player_hand: #{ph}, dealer_hand: #{dh}"
+    # TODO
+    #    test "pass the game state to the decision process"
+
+    test "triggers a choice to hit or stand" do
+      bob_decision = fn
+        _prompt, choice -> raise "bob needs to decide #{choice |> Map.values() |> inspect()}"
       end
 
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
-        |> Surefire.Avatar.with_action(:hit_or_stand, bob_request)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
+        |> Surefire.Avatar.automatize(:decide, bob_decision)
 
       game =
         Round.new("test_round", ~C[5 8 K]h)
         |> Round.enter(avatar)
         |> Round.deal()
 
-      assert_raise RuntimeError, "player_hand: 5♥,K♥: 15, dealer_hand: 8♥: 8", fn ->
+      assert_raise RuntimeError, "bob needs to decide [:stand, :hit]", fn ->
         game |> Round.play(:bob)
       end
     end
@@ -382,7 +389,7 @@ defmodule Blackjack.RoundTest do
     test "decides if a player wins and update bets" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new("test_round", ~C[A 8 K]h ++ ~C[A]s)
@@ -409,7 +416,7 @@ defmodule Blackjack.RoundTest do
     test "decides if a player loses and update bets" do
       avatar =
         Surefire.Avatar.new(:bob)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {45, av} end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "45" end)
 
       game =
         Round.new("test_round", ~C[5 J K A]h)
@@ -437,8 +444,8 @@ defmodule Blackjack.RoundTest do
     test "can get blackjack on deal and win" do
       avatar =
         Surefire.Avatar.new(:alice)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {12, av} end)
-        |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "12" end)
+        |> Surefire.Avatar.automatize(:decide, fn _p, _c -> :stand end)
 
       game =
         Round.new("test_round", ~C[J]h ++ ~C[8]s ++ ~C[A]c ++ ~C[8 K]d)
@@ -465,8 +472,8 @@ defmodule Blackjack.RoundTest do
     test "can get blackjack on deal and lose (WIP should tie)" do
       avatar =
         Surefire.Avatar.new(:alice)
-        |> Surefire.Avatar.with_action(:bet, fn av -> {12, av} end)
-        |> Surefire.Avatar.with_action(:hit_or_stand, fn _ph, _dh -> :stand end)
+        |> Surefire.Avatar.automatize(:ask, fn _p -> "12" end)
+        |> Surefire.Avatar.automatize(:decide, fn _p, _c -> :stand end)
 
       game =
         Round.new("test_round", ~C[J]h ++ ~C[A]s ++ ~C[A]c ++ ~C[Q]d)

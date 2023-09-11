@@ -169,25 +169,32 @@ defmodule Blackjack.Round do
     %{round | bets: bets}
   end
 
-    defimpl Surefire.Game do
-      def id(%Blackjack.Round{} = round) do
-        round.id
-      end
-
-      def enter(%Blackjack.Round{} = round, avatar) do
-        enter(round, avatar)
-      end
-
-              @doc """
-  play/1 is useful for simple interactive play.
-  """
-  def play(%Blackjack.Round{avatars: avatars} = game) do
-    game
-    |> Blackjack.Round.deal()
-    |> Blackjack.Round.play()
-    |> Blackjack.Round.play(:dealer)
-    |> Blackjack.Round.resolve()
-
-  end
+  defimpl Surefire.Game do
+    def id(%Blackjack.Round{} = round) do
+      round.id
     end
+
+    def enter(%Blackjack.Round{} = round, avatar) do
+      Blackjack.Round.enter(round, avatar)
+    end
+
+    @doc """
+    play/1 is useful for simple interactive play.
+      To run a quick game:
+
+      iex> me = Surefire.IExPlayer.new(:mememe, 100)
+      iex> {av, me} = me |> Surefire.Player.avatar("bj_avatar", 50)
+      iex> g = Blackjack.Round.new("demo round", Blackjack.Card.deck() |> Enum.shuffle())
+      iex> g = g |> Surefire.Game.enter(av)
+      iex> g = g |> Surefire.Game.play()
+
+    """
+    def play(%Blackjack.Round{avatars: avatars} = game) do
+      game
+      |> Blackjack.Round.deal()
+      |> Blackjack.Round.play()
+      |> Blackjack.Round.play(:dealer)
+      |> Blackjack.Round.resolve()
+    end
+  end
 end

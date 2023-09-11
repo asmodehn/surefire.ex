@@ -1,4 +1,4 @@
- defprotocol Surefire.Game do
+defprotocol Surefire.Game do
   @moduledoc ~s"""
   Round protocol to allow a Game to manipulate any rounds in the same way.
   """
@@ -8,8 +8,8 @@
   def enter(round, avatar)
 
   def play(round)
+end
 
- end
 #
 #
 # defmodule Surefire.TestGame do

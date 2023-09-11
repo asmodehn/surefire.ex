@@ -15,18 +15,57 @@ defmodule Surefire.DryAvatar do
   # TODO
 end
 
+defmodule Surefire.Avatar.Automated do
+  defstruct decide: nil,
+            ask: nil,
+            tell: nil,
+            bet_transfer: nil,
+            gain_transfer: nil
+
+  def automatize(%__MODULE__{} = auto, fun_id, fun)
+      when is_map_key(%__MODULE__{}, fun_id) do
+    auto |> Map.put(fun_id, fun)
+  end
+
+  def decide(%__MODULE__{} = auto, prompt, choice_map)
+      when auto.decide != nil do
+    auto.decide.(prompt, choice_map)
+  end
+
+  def ask(%__MODULE__{} = auto, prompt)
+      when auto.ask != nil do
+    auto.ask.(prompt)
+  end
+
+  def tell(%__MODULE__{} = auto, prompt)
+      when auto.tell != nil do
+    auto.tell.(prompt)
+  end
+
+  def bet_transfer(%__MODULE__{} = auto, amount, account_id)
+      when auto.bet_transfer != nil do
+    auto.bet_transfer.(amount, account_id)
+  end
+
+  def gain_transfer(%__MODULE__{} = auto, amount, account_id)
+      when auto.gain_transfer != nil do
+    auto.gain_transfer.(amount, account_id)
+  end
+end
+
 defmodule Surefire.Avatar do
-  # TODO : make avatar embed DryAvatar
+  # TODO : make avatar embed DryAvatar ?
 
   @moduledoc """
   This Avatar prompt in IEx to ask for the user decision.
   """
 
   alias Surefire.Accounting.{LedgerServer, AccountID}
+  alias Surefire.Avatar.Automated
 
   defstruct id: nil,
             account_id: nil,
-            actions: %{}
+            automated: %Automated{}
 
   def new(id) do
     %__MODULE__{
@@ -48,47 +87,16 @@ defmodule Surefire.Avatar do
       id: id,
       account_id: account_id
     }
-
-    # TODO : create account here instead of expecting to be called before this !
   end
 
-  # TODO: different type of actions: read only | mutating avatar
-  # TODO : or different API (pick one in server, statemachine, etc. ?)
-  def with_action(%__MODULE__{} = avatar, action_name, action_body) do
-    %{avatar | actions: avatar.actions |> Map.put(action_name, action_body)}
+  def automatize(%__MODULE__{automated: automated} = avatar, action_name, action_body) do
+    %{avatar | automated: automated |> Automated.automatize(action_name, action_body)}
   end
 
-  # TMP solution, we can probably do better
-  def call_action(%__MODULE__{actions: actions}, action_name) do
-    actions[action_name].()
-  end
-
-  def call_action(%__MODULE__{actions: actions}, action_name, param1) do
-    actions[action_name].(param1)
-  end
-
-  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2) do
-    actions[action_name].(param1, param2)
-  end
-
-  def call_action(%__MODULE__{actions: actions}, action_name, param1, param2, param3) do
-    actions[action_name].(param1, param2, param3)
-  end
-
-  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name) do
-    actions[action_name].(avatar)
-  end
-
-  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1) do
-    actions[action_name].(avatar, param1)
-  end
-
-  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1, param2) do
-    actions[action_name].(avatar, param1, param2)
-  end
-
-  def call_mutation(%__MODULE__{actions: actions} = avatar, action_name, param1, param2, param3) do
-    actions[action_name].(avatar, param1, param2, param3)
+  # TODO : pass the game state for decision
+  def decide(%__MODULE__{automated: auto} = avatar, prompt, choice_map)
+      when auto.decide != nil do
+    Automated.decide(auto, prompt, choice_map)
   end
 
   def decide(%__MODULE__{} = avatar, prompt, choice_map) do
@@ -104,8 +112,20 @@ defmodule Surefire.Avatar do
       end
   end
 
+  # TODO : pass the game state for decision
+  def ask(%__MODULE__{automated: auto} = _avatar, prompt)
+      when auto.ask != nil do
+    Automated.ask(auto, prompt)
+  end
+
   def ask(%__MODULE__{} = _avatar, prompt) do
     ExPrompt.string_required(prompt)
+  end
+
+  # TODO : pass the game state for decision
+  def tell(%__MODULE__{automated: auto} = _avatar, message)
+      when auto.tell != nil do
+    Automated.tell(auto, message)
   end
 
   def tell(%__MODULE__{} = _avatar, message) do

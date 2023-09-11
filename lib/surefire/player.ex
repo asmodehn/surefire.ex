@@ -11,7 +11,7 @@ defprotocol Surefire.Player do
   #  @spec decide(String.t(), %{(String.t() | atom()) => return()}) :: return()
   #  def decide(player, prompt, choice_map)
 
-#  def get(player, gain)
+  #  def get(player, gain)
   # or a way to reduce avatars into player ??
   # => simply via closing accounts ???
 
@@ -115,10 +115,10 @@ defmodule Surefire.TestPlayer do
       {avatar, player}
     end
 
-#    def get(player, gain) do
-#      #      IO.puts("#{player}/You get #{gain}") -> IO monad param in protocol ?
-#      %{player | credits: player.credits + gain}
-#    end
+    #    def get(player, gain) do
+    #      #      IO.puts("#{player}/You get #{gain}") -> IO monad param in protocol ?
+    #      %{player | credits: player.credits + gain}
+    #    end
   end
 
   defimpl String.Chars do
@@ -231,12 +231,12 @@ defmodule Surefire.IExPlayer do
       {avatar, player}
     end
 
-#    def get(player, gain) do
-#      IO.puts("#{player}/You get #{gain}")
-#      # TODO : transaction !!!!
-#
-#      player
-#    end
+    #    def get(player, gain) do
+    #      IO.puts("#{player}/You get #{gain}")
+    #      # TODO : transaction !!!!
+    #
+    #      player
+    #    end
   end
 
   defimpl String.Chars do
