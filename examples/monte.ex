@@ -1,21 +1,27 @@
-defmodule Monte.Stake do
-  defstruct position: nil, amount: 0
-
-  def new(position, bet_amount) do
-    %__MODULE__{
-      position: position,
-      amount: bet_amount
-    }
-  end
-end
-
 defmodule Monte do
   @moduledoc ~s"""
-    # References:
+    ## References:
     - https://en.wikipedia.org/wiki/Three-card_Monte
 
-    # Examples
-  TODO
+    ## Examples
+
+  Create your player data :
+      iex> me = Surefire.Avatar.new(:mememe)
+
+    Start a game of Monte :
+      iex> m = Monte.new(:monte)
+
+    add a player :
+      iex> m = m |> Monte.add_player(me)
+
+  shuffle:
+      iex> m = m |> Monte.shuffle()
+
+  stake:
+      iex> m = m |> Monte.bet()
+
+  reveal:
+      iex> m |> Monte.reveal()
 
   """
 
@@ -27,8 +33,7 @@ defmodule Monte do
   defstruct id: nil,
             cards: [],
             players: %{},
-            stakes: %{},
-            wins: %{}
+            bets: %{}
 
   def new(id, cards \\ [@jclubs, @jspades, @qhearts]) do
     %__MODULE__{
@@ -45,13 +50,13 @@ defmodule Monte do
     game = %{game | cards: Enum.shuffle(cards)}
   end
 
-  def stakes(%__MODULE__{players: avatars} = game) do
+  def bet(%__MODULE__{players: avatars} = game) do
     for {av_id, avatar} <- avatars, reduce: game do
-      game_acc -> stake(game_acc, avatar)
+      game_acc -> bet(game_acc, avatar)
     end
   end
 
-  def stake(%__MODULE__{stakes: stakes} = game, %Surefire.Avatar{} = avatar) do
+  def bet(%__MODULE__{bets: bets} = game, %Surefire.Avatar{} = avatar) do
     card_pos =
       avatar
       |> Surefire.Avatar.decide("Where is the queen of hearts ?", %{
@@ -69,12 +74,9 @@ defmodule Monte do
 
     %{
       game
-      | stakes:
-          stakes
-          |> Map.put(
-            avatar.id,
-            %Monte.Stake{position: card_pos, amount: amount}
-          )
+      | bets:
+          bets
+          |> Surefire.Bets.stake(card_pos, avatar.id, amount)
     }
   end
 
@@ -85,29 +87,18 @@ defmodule Monte do
   end
 
   def reveal(%__MODULE__{players: avatars} = game, avatar_id) do
-    av_pos = game.stakes[avatar_id].position
+    q_index = game.cards |> Enum.find_index(fn c -> c == @qhearts end)
 
-    won_amount =
-      case game.cards |> Enum.at(av_pos) do
-        # lose
-        @jclubs ->
-          0
-
-        # lose
-        @jspades ->
-          0
-
-        @qhearts ->
-          # win
-          game.stakes[avatar_id].amount * 2
-      end
+    %{
+      game
+      | bets:
+          game.bets
+          |> Surefire.Bets.winnings(q_index, fn
+            s -> %{s | amount: s.amount * 2}
+          end)
+    }
 
     # TODO : gain transaction for winning Avatars
-    if won_amount > 0 do
-      %{game | wins: game.wins |> Map.put(avatar_id, won_amount)}
-    else
-      game
-    end
   end
 
   defimpl Surefire.Game do

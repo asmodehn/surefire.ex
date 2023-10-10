@@ -96,8 +96,8 @@ defmodule Blackjack.RoundTest do
 
       # TODO : verify transaction exists
 
-      # TODO :maybe this is one level too much ? => integrate bets in avatar's account
-      assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
+      assert game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 45}]}
+
       assert game.avatars == %{bob: avatar}
     end
 
@@ -113,8 +113,8 @@ defmodule Blackjack.RoundTest do
         )
         |> Round.enter(avatar)
 
-      # TODO :maybe this is one level too much ? => integrate bets in avatar's account
-      assert game.bets == %Blackjack.Bets{bets: [bob: 45]}
+      assert game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 45}]}
+
       assert game.avatars == %{bob: avatar}
     end
   end
@@ -409,8 +409,8 @@ defmodule Blackjack.RoundTest do
 
       resolved_game = dealt_game |> Round.resolve()
 
-      # bet is gone
-      assert resolved_game.bets.bets == []
+      # winnings in bets: double
+      assert resolved_game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 90}]}
     end
 
     test "decides if a player loses and update bets" do
@@ -435,8 +435,8 @@ defmodule Blackjack.RoundTest do
 
       resolved_game = dealt_game |> Round.resolve()
 
-      # bet is gone
-      assert resolved_game.bets.bets == []
+      # winnings in bet: none
+      assert resolved_game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 0}]}
     end
   end
 

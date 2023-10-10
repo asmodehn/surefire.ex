@@ -22,6 +22,8 @@ defmodule Surefire.Avatar.Automated do
             bet_transfer: nil,
             gain_transfer: nil
 
+  # TODO : macro to detect full automation
+
   def automatize(%__MODULE__{} = auto, fun_id, fun)
       when is_map_key(%__MODULE__{}, fun_id) do
     auto |> Map.put(fun_id, fun)
@@ -65,7 +67,7 @@ defmodule Surefire.Avatar do
 
   defstruct id: nil,
             account_id: nil,
-            automated: %Automated{}
+            automated: nil
 
   def new(id) do
     %__MODULE__{
@@ -90,6 +92,7 @@ defmodule Surefire.Avatar do
   end
 
   def automatize(%__MODULE__{automated: automated} = avatar, action_name, action_body) do
+    automated = if automated == nil, do: %Automated{}, else: automated
     %{avatar | automated: automated |> Automated.automatize(action_name, action_body)}
   end
 

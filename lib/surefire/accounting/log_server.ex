@@ -95,7 +95,7 @@ defmodule Surefire.Accounting.LogServer do
 
   @impl true
   def handle_call({:commit, transaction}, _from, history) do
-    history.accounts |> IO.inspect()
+    # history.accounts |> IO.inspect()
 
     absent_credited =
       Transaction.credited_accounts(transaction)

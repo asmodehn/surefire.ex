@@ -27,7 +27,7 @@ defmodule Blackjack.Round do
   defstruct id: "the_roundWIP",
             # TODO : number max of betting boxes ?
             # TODO : add transactions id in bets ?
-            bets: %Bets{},
+            bets: %{},
             avatars: %{},
             account_id: nil,
             table: %Table{}
@@ -66,9 +66,18 @@ defmodule Blackjack.Round do
         # TODO : amount or full transaction id ??
       end
 
+    # TMP
+    # TODO : define game_event relative to game state (player hand > dealer hand)
+    # TODO : Note game_event is related to betting box somehow
+    game_event = avatar.id
+
     %{
       round
-      | bets: bets |> Bets.player_bet(avatar.id, amount),
+      | bets:
+          bets
+          |> Surefire.Bets.stake(game_event, avatar.id, amount),
+
+        #              |> Bets.player_bet(avatar.id, amount),
         avatars: avatars |> Map.put(avatar.id, avatar)
     }
   end
@@ -137,36 +146,38 @@ defmodule Blackjack.Round do
     if updated_table.result == :void do
       {%{g | table: updated_table}, [:game_is_void]}
     else
-      for {p, wl} <- updated_table.result, reduce: %{g | table: updated_table} do
-        acc ->
-          case wl do
-            :win ->
-              updated_acc = player_win(acc, avatars[p])
+      # TODO : fix game_event to simplify this...
+      updated_bets =
+        for {p, wl} <- updated_table.result, reduce: g.bets do
+          acc ->
+            case wl do
+              :win ->
+                acc
+                |> Surefire.Bets.winnings(
+                  p,
+                  fn
+                    s -> %{s | amount: s.amount * 2}
+                  end,
+                  # To not lose stake of yet unparsed player result
+                  fn s -> s end
+                )
 
-            :lose ->
-              updated_acc = player_lose(acc, avatars[p])
-          end
-      end
+              :lose ->
+                acc
+                |> Surefire.Bets.winnings(
+                  p,
+                  fn
+                    s -> %{s | amount: s.amount * 0}
+                  end,
+
+                  # To keep other players' result
+                  fn s -> s end
+                )
+            end
+        end
+
+      %{g | table: updated_table, bets: updated_bets}
     end
-  end
-
-  def player_win(%__MODULE__{bets: bets} = round, avatar) do
-    {player_bet, bets} = bets |> Bets.player_end(avatar.id)
-
-    _tid =
-      if round.account_id != nil do
-        Avatar.gain(avatar, round.account_id, player_bet * 2)
-      end
-
-    %{round | bets: bets}
-  end
-
-  def player_lose(%__MODULE__{bets: bets} = round, avatar) do
-    {_player_bet, bets} = bets |> Bets.player_end(avatar.id)
-
-    # On loss : no transaction, funds already on round account
-    # => will be transferred back to Surefire.Game after the end of the round.
-    %{round | bets: bets}
   end
 
   defimpl Surefire.Game do

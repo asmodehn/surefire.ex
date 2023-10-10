@@ -50,10 +50,13 @@ defmodule Mix.Tasks.Monte do
 
     IO.puts("Create your player data : > me = Surefire.Avatar.new(:mememe)")
     IO.puts("Start a game of Monte : > m = Monte.new(:monte) ")
-    IO.puts("add a player : > m = m |> Surefire.Game.enter(me)")
-    IO.puts("play: > m |> Monte.play()")
+    IO.puts("add a player : > m = m |> Monte.add_player(me)")
+    IO.puts("shuffle: > m = m |> Monte.shuffle()")
+    IO.puts("stake: > m = m |> Monte.bet()")
+    IO.puts("reveal: > m |> Monte.reveal()")
+
     # TODO : check winnings
 
-    # TODO : instructions to play blackjack over IEx **with ledger and accounts**.
+    # TODO : instructions to play monte over IEx **with ledger and accounts**.
   end
 end

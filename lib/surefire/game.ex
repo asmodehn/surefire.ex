@@ -3,10 +3,16 @@ defprotocol Surefire.Game do
   Round protocol to allow a Game to manipulate any rounds in the same way.
   """
 
+  @type t :: any()
+
+  @spec id(t) :: atom()
   def id(round)
 
+  @spec enter(t, Surefire.Avatar.t()) :: t
   def enter(round, avatar)
 
+  # TODO : return wins/losses
+  @spec play(t) :: any
   def play(round)
 end
 

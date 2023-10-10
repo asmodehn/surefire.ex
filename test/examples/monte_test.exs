@@ -33,7 +33,7 @@ defmodule MonteTest do
     end
   end
 
-  describe "stake" do
+  describe "bet" do
     test "request a bet on a position from the player" do
       avatar = Surefire.Avatar.new(:test_avatar)
 
@@ -42,26 +42,25 @@ defmodule MonteTest do
       automated_avatar =
         avatar
         |> Surefire.Avatar.automatize(:decide, fn
-          _prompt, choice_map -> Enum.random(choice_map |> Map.values())
+          _prompt, choice_map -> 0
         end)
         |> Surefire.Avatar.automatize(:ask, fn
           _prompt -> "42"
         end)
 
-      %Monte{id: :test_game, stakes: stakes} =
+      %Monte{id: :test_game, bets: stakes} =
         Monte.new(:test_game)
         |> Monte.add_player(automated_avatar)
-        |> Monte.stake(automated_avatar)
+        |> Monte.bet(automated_avatar)
 
-      %Monte.Stake{position: card_pos, amount: amount} = stakes[:test_avatar]
-
-      assert amount == 42
-      assert card_pos in 0..2
+      assert is_map(stakes)
+      assert map_size(stakes) == 1
+      assert stakes[0] == [%Surefire.Bets.Stake{holder: :test_avatar, amount: 42}]
     end
   end
 
   describe "reveal" do
-    test "add wins for the player if the quenn was found" do
+    test "add wins for the player if the queen was found" do
       avatar = Surefire.Avatar.new(:test_avatar)
 
       # automating the avatar for this test...
@@ -75,13 +74,15 @@ defmodule MonteTest do
           _prompt -> "42"
         end)
 
-      %Monte{id: :test_game, wins: wins} =
+      %Monte{id: :test_game, bets: wins} =
         Monte.new(:test_game)
         |> Monte.add_player(automated_avatar)
-        |> Monte.stake(automated_avatar)
+        |> Monte.bet(automated_avatar)
         |> Monte.reveal()
 
-      assert wins[:test_avatar] == 42 * 2
+      assert is_map(wins)
+      assert map_size(wins) == 1
+      assert wins[2] == [%Surefire.Bets.Stake{holder: :test_avatar, amount: 42 * 2}]
     end
 
     test "does not record a win for the player if the queen was not found" do
@@ -98,13 +99,13 @@ defmodule MonteTest do
           _prompt -> "42"
         end)
 
-      %Monte{id: :test_game, wins: wins} =
+      %Monte{id: :test_game, bets: wins} =
         Monte.new(:test_game)
         |> Monte.add_player(automated_avatar)
-        |> Monte.stake(automated_avatar)
+        |> Monte.bet(automated_avatar)
         |> Monte.reveal()
 
-      assert wins[:test_avatar] == nil
+      assert wins[1] == nil
     end
   end
 end
