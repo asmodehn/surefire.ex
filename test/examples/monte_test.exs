@@ -42,7 +42,7 @@ defmodule MonteTest do
       automated_avatar =
         avatar
         |> Surefire.Avatar.automatize(:decide, fn
-          _prompt, choice_map -> 0
+          _prompt, _choice_map -> 0
         end)
         |> Surefire.Avatar.automatize(:ask, fn
           _prompt -> "42"

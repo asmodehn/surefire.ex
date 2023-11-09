@@ -96,7 +96,7 @@ defmodule Blackjack.RoundTest do
 
       # TODO : verify transaction exists
 
-      assert game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 45}]}
+      assert game.bets == %{bob: [%Blackjack.Bet{amount: 45, event: :win}]}
 
       assert game.avatars == %{bob: avatar}
     end
@@ -113,7 +113,7 @@ defmodule Blackjack.RoundTest do
         )
         |> Round.enter(avatar)
 
-      assert game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 45}]}
+      assert game.bets == %{bob: [%Blackjack.Bet{amount: 45, event: :win}]}
 
       assert game.avatars == %{bob: avatar}
     end
@@ -410,7 +410,7 @@ defmodule Blackjack.RoundTest do
       resolved_game = dealt_game |> Round.resolve()
 
       # winnings in bets: double
-      assert resolved_game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 90}]}
+      assert resolved_game.bets == %{bob: [%Blackjack.Bet{amount: 90, event: :win}]}
     end
 
     test "decides if a player loses and update bets" do
@@ -436,7 +436,7 @@ defmodule Blackjack.RoundTest do
       resolved_game = dealt_game |> Round.resolve()
 
       # winnings in bet: none
-      assert resolved_game.bets == %{bob: [%Surefire.Bets.Stake{holder: :bob, amount: 0}]}
+      assert resolved_game.bets == %{bob: [%Blackjack.Bet{amount: 0, event: :win}]}
     end
   end
 

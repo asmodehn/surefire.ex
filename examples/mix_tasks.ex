@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Blackjack do
     Surefire.Accounting.LogServer.start_link([])
 
     # TODO : REVIEW instructions to play blackjack over IEx.
-    IO.puts("Create your player data : > me = Blackjack.Player.new_interactive()")
+    IO.puts("Create your player data : > me = Surefire.IExPlayer.new(:mememe, 100)")
     IO.puts("Start a game of Blackjack : > bj = Blackjack.new() ")
     IO.puts("Place a bet : > Blackjack.bet(bj, me, 51)")
     IO.puts("Deal cards : > Blackjack.deal(bj)")

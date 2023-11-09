@@ -30,6 +30,8 @@ defmodule Monte do
   @jspades :jack_of_spades
   @qhearts :queen_of_hearts
 
+  # TODO: implement game state diff behaviour/protocol here...
+
   defstruct id: nil,
             cards: [],
             players: %{},
@@ -93,9 +95,15 @@ defmodule Monte do
       game
       | bets:
           game.bets
-          |> Surefire.Bets.winnings(q_index, fn
-            s -> %{s | amount: s.amount * 2}
-          end)
+          # TODO : fix this, SIMPLY ! avoid defining a specific bet module, as an exercise...
+
+          |> Surefire.Bets.tmp_eventhandler_process_double_or_nothing(
+#          avatar_id
+               q_index
+             )
+#          |> Surefire.Bets.winnings(avatar_id, fn
+#            s -> %{s | amount: s.amount * 2}
+#          end)
     }
 
     # TODO : gain transaction for winning Avatars

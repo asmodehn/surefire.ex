@@ -1,10 +1,11 @@
 defmodule Blackjack.Table do
   @moduledoc """
   `Blackjack.Table` implements blackjack rules for a table.
-
-
   """
   alias Blackjack.Hand
+
+  # TODO : this should implement Surefire.Game.UpdateableState
+  # OR in round ?? update one player at a time, or all at once ?
 
   @derive {Inspect, only: [:dealer, :players, :result]}
   defstruct void_under: 1,
@@ -13,7 +14,7 @@ defmodule Blackjack.Table do
             dealer: %Hand{},
             # TODO confusing : players -> hands
             players: %{},
-            # TODO : maybe only hte result of a function (resolve/1 ?)
+            # TODO : maybe only the result of a function (resolve/1 ?)
             result: %{}
 
   @type t :: %__MODULE__{

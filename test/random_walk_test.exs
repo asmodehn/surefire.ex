@@ -17,7 +17,7 @@ defmodule Surefire.RandomWalkTest do
           b >= a -> a..b//1
         end
       end
-  end
+    end
 
     def state_generator do
       gen all(
@@ -29,16 +29,15 @@ defmodule Surefire.RandomWalkTest do
       end
     end
 
-    #TODO : State is a Category ?
+    # TODO : State is a Category ?
     # => find the set of properties to verify here...
 
     property "%State{} is initialized to a fixpoint for next/2, except timesteps which is monotonous" do
-        check all(step_inc <- positive_integer()) do
+      check all(step_inc <- positive_integer()) do
+        fix = %State{}
+        assert fix.timesteps == 0
 
-      fix = %State{}
-      assert fix.timesteps == 0
-
-      assert State.next(fix, step_inc) == %State{fix | timesteps: step_inc}
+        assert State.next(fix, step_inc) == %State{fix | timesteps: step_inc}
       end
     end
 
@@ -56,10 +55,5 @@ defmodule Surefire.RandomWalkTest do
         assert inc in state.step_range
       end
     end
-
   end
-
-
-
-
 end

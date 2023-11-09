@@ -69,13 +69,15 @@ defmodule Blackjack.Round do
     # TMP
     # TODO : define game_event relative to game state (player hand > dealer hand)
     # TODO : Note game_event is related to betting box somehow
-    game_event = avatar.id
+
+    game_event =  :win
 
     %{
       round
       | bets:
           bets
-          |> Surefire.Bets.stake(game_event, avatar.id, amount),
+          |> Surefire.Bets.stake(avatar.id, Blackjack.Bet.new(game_event,  amount)),
+#          |> Blackjack.Bet.stake(game_event, avatar.id, amount),
 
         #              |> Bets.player_bet(avatar.id, amount),
         avatars: avatars |> Map.put(avatar.id, avatar)
@@ -104,6 +106,14 @@ defmodule Blackjack.Round do
     end
   end
 
+
+  def update(%__MODULE__{} = game) do
+
+    play(game) |> resolve()
+    #TODO : implement resolve here following surefire's spec
+  end
+
+
   @doc ~s"""
     The play phase, where each player makes decisions, and cards are dealt
   """
@@ -123,14 +133,20 @@ defmodule Blackjack.Round do
   end
 
   def play(%__MODULE__{table: table} = game, avatar) do
-    %{
-      game
-      | table:
-          table
+
+    updated_table = table
           |> Table.play(
             avatar.id,
             fn ph, dh -> Avatar.hit_or_stand(avatar, ph, dh) end
           )
+
+    %{
+      game
+      | table: updated_table,
+        # TODO > modify here with Surefire bets updater.
+        # Note : how to manage events ?? keep game events implicit ??
+        # Only have accounting events explicit ??
+        bets: game.bets
     }
   end
 
@@ -139,41 +155,43 @@ defmodule Blackjack.Round do
     To the end, where the dealer get cards until >17
   """
   def resolve(%__MODULE__{table: table, avatars: avatars} = g) do
+    # TODO : get rid of this ? Table.resolve is now called by Table.play...
     updated_table =
       table
-      |> Table.resolve()
+#      |> Table.resolve()  # TMP test ...
 
     if updated_table.result == :void do
       {%{g | table: updated_table}, [:game_is_void]}
     else
-      # TODO : fix game_event to simplify this...
+      # TODO : fix game_event (cf. betbox module) to simplify this...
       updated_bets =
         for {p, wl} <- updated_table.result, reduce: g.bets do
-          acc ->
-            case wl do
-              :win ->
-                acc
-                |> Surefire.Bets.winnings(
-                  p,
-                  fn
-                    s -> %{s | amount: s.amount * 2}
-                  end,
-                  # To not lose stake of yet unparsed player result
-                  fn s -> s end
-                )
+          acc -> Blackjack.Bet.on(acc, p, wl)
 
-              :lose ->
-                acc
-                |> Surefire.Bets.winnings(
-                  p,
-                  fn
-                    s -> %{s | amount: s.amount * 0}
-                  end,
-
-                  # To keep other players' result
-                  fn s -> s end
-                )
-            end
+#            case wl do
+#              :win ->
+#                acc
+#                |> Surefire.Bets.winnings(
+#                  p,
+#                  fn
+#                    s -> %{s | amount: s.amount * 2}
+#                  end,
+#                  # To not lose stake of yet unparsed player result
+#                  fn s -> s end
+#                )
+#
+#              :lose ->
+#                acc
+#                |> Surefire.Bets.winnings(
+#                  p,
+#                  fn
+#                    s -> %{s | amount: s.amount * 0}
+#                  end,
+#
+#                  # To keep other players' result
+#                  fn s -> s end
+#                )
+#            end
         end
 
       %{g | table: updated_table, bets: updated_bets}

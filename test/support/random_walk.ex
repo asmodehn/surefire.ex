@@ -29,12 +29,14 @@ defmodule Surefire.RandomWalk do
     def next(%__MODULE__{} = state, steps \\ 1) do
       # scaling the range to avoid dumb step loop
       # => fast, but internal changes not visible from outside.
-      added_value = Enum.random(
-        Range.new(
-      state.step_range.first*steps,
-           state.step_range.last*steps,
-                 state.step_range.step
-      ))
+      added_value =
+        Enum.random(
+          Range.new(
+            state.step_range.first * steps,
+            state.step_range.last * steps,
+            state.step_range.step
+          )
+        )
 
       %__MODULE__{
         timesteps: state.timesteps + steps,
@@ -42,7 +44,6 @@ defmodule Surefire.RandomWalk do
         step_range: state.step_range
       }
     end
-
   end
 
   use GenServer
@@ -55,20 +56,19 @@ defmodule Surefire.RandomWalk do
   @spec ticker(pid(), timestep_increment()) :: {timestep(), value()}
   def ticker(pid, step \\ 1) do
     # TODO : handle timeouts somehow ???
-    GenServer.call(pid, {:next, step}) #TODO : better than this, :infinity)
+    # TODO : better than this, :infinity)
+    GenServer.call(pid, {:next, step})
   end
 
   ## Defining GenServer Callbacks
 
   @impl true
-  def init(value \\  1) do
+  def init(value \\ 1) do
     {:ok, State.init(-value..value//1)}
   end
 
-
   @impl true
   def handle_call({:next, step_increment}, _from, %State{} = state) do
-
     # TODO: compute potential step_range change
 
     # TODO: potentially do multiple calls to State.next
@@ -79,6 +79,6 @@ defmodule Surefire.RandomWalk do
 
     updated = State.next(state, step_increment)
 
-    {:reply, {updated.timesteps, updated.value} ,updated}
+    {:reply, {updated.timesteps, updated.value}, updated}
   end
 end
